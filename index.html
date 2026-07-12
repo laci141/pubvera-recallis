@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FDA Drug Recall Tracker</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: #0a0e27;
+      color: #e0e0e0;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at 20% 50%, rgba(220, 38, 38, 0.15) 0%, transparent 50%),
+                  radial-gradient(ellipse at 80% 80%, rgba(234, 88, 12, 0.1) 0%, transparent 50%),
+                  radial-gradient(ellipse at 50% 0%, rgba(120, 30, 30, 0.1) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: -1;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .hero {
+      text-align: center;
+      padding: 60px 20px;
+      background: linear-gradient(135deg, rgba(30, 20, 20, 0.7), rgba(40, 15, 15, 0.7));
+      border-radius: 20px;
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid rgba(220, 38, 38, 0.2);
+      margin-bottom: 40px;
+    }
+    .hero h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, #dc2626, #ea580c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+    .hero p {
+      font-size: 1rem;
+      color: #b0b0b0;
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+    .hero-chips {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      padding: 8px 16px;
+      background: rgba(220, 38, 38, 0.15);
+      border: 1px solid rgba(220, 38, 38, 0.4);
+      border-radius: 20px;
+      color: #fca5a5;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+    .chip:hover {
+      background: rgba(220, 38, 38, 0.25);
+      border-color: rgba(220, 38, 38, 0.6);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-4px);
+    }
+    .card.red-accent { border-top: 3px solid #dc2626; }
+    .card.orange-accent { border-top: 3px solid #ea580c; }
+    .card.amber-accent { border-top: 3px solid #d97706; }
+    .card.burgundy-accent { border-top: 3px solid #7c1d12; }
+    .card-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .card h3 {
+      font-size: 1.2rem;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .card p {
+      font-size: 0.9rem;
+      color: #a0a0a0;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .card-btn {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, #dc2626, #ea580c);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .card-btn:hover { transform: scale(1.02); opacity: 0.9; }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.open { display: flex; }
+    .modal-content {
+      background: rgba(30, 25, 35, 0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      border-radius: 16px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .modal h2 {
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      color: #b0b0b0;
+    }
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+    }
+    .form-group input::placeholder {
+      color: #707070;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(220, 38, 38, 0.5);
+    }
+    .form-group select option { background: #1a1420; }
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+    }
+    input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+    }
+    .modal-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #dc2626, #ea580c);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 10px;
+    }
+    .modal-btn:hover { transform: scale(1.02); }
+    .modal-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .spinner {
+      border: 3px solid rgba(220, 38, 38, 0.2);
+      border-top: 3px solid #dc2626;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 0.85rem;
+    }
+    .result-table th {
+      background: rgba(220, 38, 38, 0.15);
+      padding: 10px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(220, 38, 38, 0.3);
+    }
+    .result-table td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .result-table tr:hover { background: rgba(255, 255, 255, 0.03); }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-red { background: #7c1d12; color: #fca5a5; }
+    .badge-yellow { background: #713f12; color: #fcd34d; }
+    .badge-gray { background: #374151; color: #d1d5db; }
+    .disclaimer {
+      background: rgba(220, 38, 38, 0.1);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.8rem;
+      color: #fca5a5;
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+    .error-box {
+      background: rgba(220, 38, 38, 0.2);
+      border: 1px solid #dc2626;
+      border-radius: 8px;
+      padding: 12px;
+      color: #fca5a5;
+      margin-top: 20px;
+    }
+    .footer {
+      text-align: center;
+      padding: 40px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.85rem;
+      color: #707070;
+    }
+    @media (max-width: 768px) {
+      body::before {
+        backdrop-filter: blur(11px);
+        -webkit-backdrop-filter: blur(11px);
+      }
+      .card { backdrop-filter: blur(11px); -webkit-backdrop-filter: blur(11px); }
+      .modal-content { backdrop-filter: blur(11px); -webkit-backdrop-filter: blur(11px); }
+      .hero h1 { font-size: 1.8rem; }
+      .hero { padding: 40px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <h1>⚠️ FDA Drug Recall Tracker</h1>
+      <p>Check active FDA recalls by drug name, manufacturer, or date.<br>Powered by openFDA. Not medical advice.</p>
+      <div class="hero-chips">
+        <div class="chip" onclick="prefillCheck('Aspirin')">Aspirin</div>
+        <div class="chip" onclick="prefillFirm('Pfizer')">Pfizer</div>
+        <div class="chip" onclick="prefillRecent(7)">This Week</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Card 1: Check Drug -->
+      <div class="card red-accent">
+        <div class="card-icon">💊</div>
+        <h3>Check Drug</h3>
+        <p>Search for active FDA recalls mentioning a drug.</p>
+        <button class="card-btn" onclick="openModal('checkModal')">Open</button>
+      </div>
+
+      <!-- Card 2: Recalls by Firm -->
+      <div class="card orange-accent">
+        <div class="card-icon">🏭</div>
+        <h3>Recalls by Firm</h3>
+        <p>Find all recalls issued by a specific manufacturer.</p>
+        <button class="card-btn" onclick="openModal('firmModal')">Open</button>
+      </div>
+
+      <!-- Card 3: Recent Recalls -->
+      <div class="card amber-accent">
+        <div class="card-icon">📅</div>
+        <h3>Recent Recalls</h3>
+        <p>Track recalls issued in the last N days.</p>
+        <button class="card-btn" onclick="openModal('recentModal')">Open</button>
+      </div>
+
+      <!-- Card 4: By Recall Number -->
+      <div class="card burgundy-accent">
+        <div class="card-icon">🔎</div>
+        <h3>By Recall Number</h3>
+        <p>Look up a specific recall by FDA number (e.g., D-0617-2026).</p>
+        <button class="card-btn" onclick="openModal('referenceModal')">Open</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Check Drug -->
+  <div class="modal" id="checkModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('checkModal')">×</button>
+      <h2>Check Drug</h2>
+      <div class="form-group">
+        <label>Drug Name</label>
+        <input type="text" id="checkDrug" placeholder="e.g., aspirin, ibuprofen" />
+      </div>
+      <div class="form-group">
+        <label>Filter by Class (optional)</label>
+        <select id="checkClass">
+          <option value="">Any class</option>
+          <option value="I">Class I (most serious)</option>
+          <option value="II">Class II</option>
+          <option value="III">Class III (least serious)</option>
+        </select>
+      </div>
+      <button class="modal-btn" onclick="submitCheck()">Search</button>
+      <div id="checkResult"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Recalls by Firm -->
+  <div class="modal" id="firmModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('firmModal')">×</button>
+      <h2>Recalls by Firm</h2>
+      <div class="form-group">
+        <label>Manufacturer/Firm Name</label>
+        <input type="text" id="firmName" placeholder="e.g., Pfizer, Johnson & Johnson" />
+      </div>
+      <div class="form-group">
+        <div class="slider-label">
+          <label>Limit Results</label>
+          <span id="firmLimitVal">15</span>
+        </div>
+        <input type="range" id="firmLimit" min="1" max="50" value="15" oninput="updateLabel('firmLimitVal', this.value)" />
+      </div>
+      <button class="modal-btn" onclick="submitFirm()">Search</button>
+      <div id="firmResult"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Recent Recalls -->
+  <div class="modal" id="recentModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('recentModal')">×</button>
+      <h2>Recent Recalls</h2>
+      <div class="form-group">
+        <div class="slider-label">
+          <label>Days Back</label>
+          <span id="recentDaysVal">30</span>
+        </div>
+        <input type="range" id="recentDays" min="1" max="365" value="30" oninput="updateLabel('recentDaysVal', this.value)" />
+      </div>
+      <div class="form-group">
+        <div class="slider-label">
+          <label>Limit Results</label>
+          <span id="recentLimitVal">15</span>
+        </div>
+        <input type="range" id="recentLimit" min="1" max="50" value="15" oninput="updateLabel('recentLimitVal', this.value)" />
+      </div>
+      <button class="modal-btn" onclick="submitRecent()">Search</button>
+      <div id="recentResult"></div>
+    </div>
+  </div>
+
+  <!-- Modal: By Recall Number -->
+  <div class="modal" id="referenceModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('referenceModal')">×</button>
+      <h2>By Recall Number</h2>
+      <div class="form-group">
+        <label>Recall Number (e.g., D-0617-2026)</label>
+        <input type="text" id="recallNumber" placeholder="FDA recall number" style="font-family: monospace;" />
+      </div>
+      <button class="modal-btn" onclick="submitReference()">Lookup</button>
+      <div id="referenceResult"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Data: openFDA · U.S. Food and Drug Administration. Not medical or legal advice.
+  </div>
+
+  <script>
+    function esc(str) {
+      const div = document.createElement('div');
+      div.textContent = str == null ? '' : str;
+      return div.innerHTML;
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.add('open');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('open');
+    }
+
+    // backdrop click + Esc (registered once, not per-open)
+    ['checkModal', 'firmModal', 'recentModal', 'referenceModal'].forEach((id) => {
+      document.getElementById(id).addEventListener('click', (e) => {
+        if (e.target.id === id) closeModal(id);
+      });
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        ['checkModal', 'firmModal', 'recentModal', 'referenceModal'].forEach(closeModal);
+      }
+    });
+
+    function updateLabel(labelId, value) {
+      document.getElementById(labelId).textContent = value;
+    }
+
+    function fmtDate(s) {
+      if (!s) return 'N/A';
+      // openFDA dates are YYYYMMDD
+      const m = /^(\d{4})(\d{2})(\d{2})$/.exec(s);
+      if (m) s = `${m[1]}-${m[2]}-${m[3]}`;
+      try {
+        const d = new Date(s);
+        if (isNaN(d)) return s;
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      } catch {
+        return s;
+      }
+    }
+
+    // openFDA returns "Class I" / "Class II" / "Class III"
+    function getClassBadge(cls) {
+      const c = String(cls || '').replace(/^Class\s+/i, '');
+      if (c === 'I') return '<span class="badge badge-red">Class I</span>';
+      if (c === 'II') return '<span class="badge badge-yellow">Class II</span>';
+      if (c === 'III') return '<span class="badge badge-gray">Class III</span>';
+      return `<span class="badge badge-gray">${esc(cls || 'N/A')}</span>`;
+    }
+
+    async function submitCheck() {
+      const drug = document.getElementById('checkDrug').value.trim();
+      const cls = document.getElementById('checkClass').value;
+      const resultDiv = document.getElementById('checkResult');
+      if (!drug) { resultDiv.innerHTML = '<div class="error-box">Please enter a drug name.</div>'; return; }
+
+      resultDiv.innerHTML = '<div class="spinner"></div>';
+
+      try {
+        const res = await fetch('/api/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ drug, class: cls || undefined })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        let html = '<table class="result-table"><tr><th>Recall #</th><th>Classification</th><th>Firm</th><th>Reason</th></tr>';
+        if (data.results && data.results.length > 0) {
+          data.results.slice(0, 10).forEach((r) => {
+            html += `<tr><td><code>${esc(r.recall_number)}</code></td><td>${getClassBadge(r.classification)}</td><td>${esc(r.recalling_firm || 'N/A')}</td><td>${esc((r.reason_for_recall || '').substring(0, 50))}</td></tr>`;
+          });
+        } else {
+          html += '<tr><td colspan="4" style="text-align:center;">No recall records found</td></tr>';
+        }
+        html += '</table>';
+        html += '<div class="disclaimer">⚠️ Do not rely on openFDA for medical decisions. This is enforcement data only, not medical advice.</div>';
+        resultDiv.innerHTML = html;
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
+      }
+    }
+
+    async function submitFirm() {
+      const firm = document.getElementById('firmName').value.trim();
+      const limit = parseInt(document.getElementById('firmLimit').value);
+      const resultDiv = document.getElementById('firmResult');
+      if (!firm) { resultDiv.innerHTML = '<div class="error-box">Please enter a firm name.</div>'; return; }
+
+      resultDiv.innerHTML = '<div class="spinner"></div>';
+
+      try {
+        const res = await fetch('/api/firm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ firm, limit })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        let html = '<table class="result-table"><tr><th>Recall #</th><th>Drug</th><th>Reason</th><th>Date</th></tr>';
+        if (data.results && data.results.length > 0) {
+          data.results.forEach((r) => {
+            html += `<tr><td><code>${esc(r.recall_number)}</code></td><td>${esc(r.product_description || 'N/A')}</td><td>${esc((r.reason_for_recall || '').substring(0, 40))}</td><td>${fmtDate(r.recall_initiation_date)}</td></tr>`;
+          });
+        } else {
+          html += '<tr><td colspan="4" style="text-align:center;">No recall records found</td></tr>';
+        }
+        html += '</table>';
+        html += '<div class="disclaimer">⚠️ Do not rely on openFDA for medical decisions. This is enforcement data only.</div>';
+        resultDiv.innerHTML = html;
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
+      }
+    }
+
+    async function submitRecent() {
+      const days = parseInt(document.getElementById('recentDays').value);
+      const limit = parseInt(document.getElementById('recentLimit').value);
+
+      const resultDiv = document.getElementById('recentResult');
+      resultDiv.innerHTML = '<div class="spinner"></div>';
+
+      try {
+        const res = await fetch('/api/recent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ days, limit })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        let html = '<table class="result-table"><tr><th>Date</th><th>Recall #</th><th>Class</th><th>Drug / Firm</th></tr>';
+        if (data.results && data.results.length > 0) {
+          data.results.forEach((r) => {
+            html += `<tr><td>${fmtDate(r.recall_initiation_date)}</td><td><code>${esc(r.recall_number)}</code></td><td>${getClassBadge(r.classification)}</td><td>${esc((r.product_description || '').substring(0, 50))}</td></tr>`;
+          });
+        } else {
+          html += '<tr><td colspan="4" style="text-align:center;">No recalls in this period</td></tr>';
+        }
+        html += '</table>';
+        html += '<div class="disclaimer">⚠️ Do not rely on openFDA for medical decisions. This is enforcement data only.</div>';
+        resultDiv.innerHTML = html;
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
+      }
+    }
+
+    async function submitReference() {
+      const recallNumber = document.getElementById('recallNumber').value.trim().toUpperCase();
+      const resultDiv = document.getElementById('referenceResult');
+      if (!recallNumber) { resultDiv.innerHTML = '<div class="error-box">Please enter a recall number.</div>'; return; }
+
+      resultDiv.innerHTML = '<div class="spinner"></div>';
+
+      try {
+        const res = await fetch('/api/reference', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recall_number: recallNumber })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        // The CLI wraps the record as { meta, results: [ {...} ] }
+        const rec = (data.results && data.results[0]) || data;
+
+        if (!rec || !rec.recall_number) {
+          resultDiv.innerHTML = '<div class="error-box">No recall found for that number.</div>';
+          return;
+        }
+
+        let html = '<div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin-top: 16px; font-size: 0.85rem;">';
+        html += `<p><strong>Recall #:</strong> ${esc(rec.recall_number || 'N/A')}</p>`;
+        html += `<p><strong>Classification:</strong> ${getClassBadge(rec.classification)}</p>`;
+        html += `<p><strong>Firm:</strong> ${esc(rec.recalling_firm || 'N/A')}</p>`;
+        html += `<p><strong>Product:</strong> ${esc(rec.product_description || 'N/A')}</p>`;
+        html += `<p><strong>Reason:</strong> ${esc(rec.reason_for_recall || 'N/A')}</p>`;
+        html += `<p><strong>Date Initiated:</strong> ${fmtDate(rec.recall_initiation_date)}</p>`;
+        html += '</div>';
+        html += '<div class="disclaimer">⚠️ Do not rely on openFDA for medical decisions. This is enforcement data only.</div>';
+        resultDiv.innerHTML = html;
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
+      }
+    }
+
+    function prefillCheck(drug) {
+      document.getElementById('checkDrug').value = drug;
+      openModal('checkModal');
+    }
+
+    function prefillFirm(firm) {
+      document.getElementById('firmName').value = firm;
+      openModal('firmModal');
+    }
+
+    function prefillRecent(days) {
+      document.getElementById('recentDays').value = days;
+      document.getElementById('recentDaysVal').textContent = days;
+      openModal('recentModal');
+    }
+  </script>
+</body>
+</html>
