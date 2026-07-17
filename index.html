@@ -16,10 +16,7 @@
     body::before {
       content: '';
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0; width: 100%; height: 100%;
       background: radial-gradient(ellipse at 20% 50%, rgba(220, 38, 38, 0.15) 0%, transparent 50%),
                   radial-gradient(ellipse at 80% 80%, rgba(234, 88, 12, 0.1) 0%, transparent 50%),
                   radial-gradient(ellipse at 50% 0%, rgba(120, 30, 30, 0.1) 0%, transparent 60%);
@@ -46,18 +43,8 @@
       margin-bottom: 10px;
       font-weight: 700;
     }
-    .hero p {
-      font-size: 1rem;
-      color: #b0b0b0;
-      margin-bottom: 30px;
-      line-height: 1.6;
-    }
-    .hero-chips {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
+    .hero p { font-size: 1rem; color: #b0b0b0; margin-bottom: 30px; line-height: 1.6; }
+    .hero-chips { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
     .chip {
       padding: 8px 16px;
       background: rgba(220, 38, 38, 0.15);
@@ -68,10 +55,7 @@
       transition: all 0.3s ease;
       font-size: 0.9rem;
     }
-    .chip:hover {
-      background: rgba(220, 38, 38, 0.25);
-      border-color: rgba(220, 38, 38, 0.6);
-    }
+    .chip:hover { background: rgba(220, 38, 38, 0.25); border-color: rgba(220, 38, 38, 0.6); }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -117,14 +101,12 @@
     .modal {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.6);
       z-index: 1000;
       align-items: center;
       justify-content: center;
+      padding: 20px;
     }
     .modal.open { display: flex; }
     .modal-content {
@@ -134,17 +116,18 @@
       border: 2px solid rgba(220, 38, 38, 0.4);
       border-radius: 16px;
       padding: 30px;
-      max-width: 500px;
-      width: 90%;
-      max-height: 80vh;
+      max-width: 640px;
+      width: 100%;
+      max-height: 85vh;
       overflow-y: auto;
       position: relative;
       box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+      transition: max-width 0.3s ease;
     }
+    .modal-content.wide { max-width: 1080px; }
     .modal-close {
       position: absolute;
-      top: 15px;
-      right: 15px;
+      top: 15px; right: 15px;
       background: none;
       border: none;
       color: #fff;
@@ -192,39 +175,53 @@
       border: 3px solid rgba(220, 38, 38, 0.2);
       border-top: 3px solid #dc2626;
       border-radius: 50%;
-      width: 30px;
-      height: 30px;
+      width: 30px; height: 30px;
       animation: spin 1s linear infinite;
       margin: 20px auto;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .table-wrap {
+      margin-top: 20px;
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid rgba(220, 38, 38, 0.2);
+    }
     .result-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
       font-size: 0.85rem;
-      table-layout: fixed;
+      min-width: 720px;
     }
     .result-table th {
       background: rgba(220, 38, 38, 0.15);
-      padding: 10px;
+      padding: 10px 12px;
       text-align: left;
       font-weight: 600;
       border-bottom: 1px solid rgba(220, 38, 38, 0.3);
-      word-break: break-word;
+      white-space: nowrap;
     }
     .result-table td {
-      padding: 10px;
+      padding: 10px 12px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      word-break: break-word;
+      vertical-align: middle;
     }
+    .result-table tr:last-child td { border-bottom: none; }
     .result-table tr:hover { background: rgba(255, 255, 255, 0.03); }
+    .result-table td.nowrap { white-space: nowrap; }
+    .result-table td.clip {
+      max-width: 340px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: help;
+    }
     .result-table code {
       background: rgba(220, 38, 38, 0.15);
       padding: 2px 6px;
       border-radius: 4px;
       font-family: 'Monaco', 'Courier New', monospace;
       font-size: 0.8rem;
+      white-space: nowrap;
     }
     .badge {
       display: inline-block;
@@ -237,6 +234,12 @@
     .badge-red { background: #7c1d12; color: #fca5a5; }
     .badge-yellow { background: #713f12; color: #fcd34d; }
     .badge-gray { background: #374151; color: #d1d5db; }
+    .empty-state {
+      text-align: center;
+      padding: 30px 20px;
+      color: #86efac;
+      font-size: 0.95rem;
+    }
     .error-box {
       background: rgba(220, 38, 38, 0.2);
       border: 1px solid #dc2626;
@@ -260,11 +263,12 @@
     .footer-disclaimer { font-size: 0.8rem; color: #fca5a5; line-height: 1.6; max-width: 800px; margin: 0 auto; }
     @media (max-width: 768px) {
       .card { backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); }
-      .modal-content { backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+      .modal-content { backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); padding: 20px; }
       .hero h1 { font-size: 1.8rem; }
       .hero { padding: 40px 20px; }
       .result-table { font-size: 0.8rem; }
       .result-table td, .result-table th { padding: 8px; }
+      .result-table td.clip { max-width: 200px; }
     }
   </style>
 </head>
@@ -307,7 +311,7 @@
     </div>
   </div>
   <div class="modal" id="checkModal">
-    <div class="modal-content">
+    <div class="modal-content" id="checkContent">
       <button class="modal-close" onclick="closeModal('checkModal')">×</button>
       <h2>Check Drug</h2>
       <div class="form-group">
@@ -328,7 +332,7 @@
     </div>
   </div>
   <div class="modal" id="firmModal">
-    <div class="modal-content">
+    <div class="modal-content" id="firmContent">
       <button class="modal-close" onclick="closeModal('firmModal')">×</button>
       <h2>Recalls by Firm</h2>
       <div class="form-group">
@@ -347,7 +351,7 @@
     </div>
   </div>
   <div class="modal" id="recentModal">
-    <div class="modal-content">
+    <div class="modal-content" id="recentContent">
       <button class="modal-close" onclick="closeModal('recentModal')">×</button>
       <h2>Recent Recalls</h2>
       <div class="form-group">
@@ -369,7 +373,7 @@
     </div>
   </div>
   <div class="modal" id="referenceModal">
-    <div class="modal-content">
+    <div class="modal-content" id="referenceContent">
       <button class="modal-close" onclick="closeModal('referenceModal')">×</button>
       <h2>By Recall Number</h2>
       <div class="form-group">
@@ -394,15 +398,14 @@
       div.textContent = str == null ? '' : str;
       return div.innerHTML;
     }
-    function truncate(text, maxLen = 60) {
-      if (!text) return '—';
-      return text.length > maxLen ? text.substring(0, maxLen) + '…' : text;
-    }
     function openModal(id) {
       document.getElementById(id).classList.add('open');
     }
     function closeModal(id) {
       document.getElementById(id).classList.remove('open');
+    }
+    function widen(contentId) {
+      document.getElementById(contentId).classList.add('wide');
     }
     ['checkModal', 'firmModal', 'recentModal', 'referenceModal'].forEach((id) => {
       document.getElementById(id).addEventListener('click', (e) => {
@@ -436,6 +439,26 @@
       if (c === 'III') return '<span class="badge badge-gray">Class III</span>';
       return `<span class="badge badge-gray">${esc(cls || 'N/A')}</span>`;
     }
+    function clipCell(text, highlightTerm) {
+      const full = text || 'N/A';
+      let inner = esc(full);
+      if (highlightTerm) {
+        const re = new RegExp('(' + highlightTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+        inner = inner.replace(re, '<mark style="background:#d97706;color:#000;border-radius:2px;padding:0 2px;">$1</mark>');
+      }
+      return `<td class="clip" title="${esc(full)}">${inner}</td>`;
+    }
+    function tableHead(cols) {
+      return '<div class="table-wrap"><table class="result-table"><tr>' +
+        cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+    }
+    function rowCommon(r, highlightTerm) {
+      return `<td class="nowrap"><code>${esc(r.recall_number || 'N/A')}</code></td>` +
+             `<td class="nowrap">${fmtDate(r.recall_initiation_date)}</td>` +
+             `<td class="nowrap">${getClassBadge(r.classification)}</td>` +
+             clipCell(r.product_description, highlightTerm) +
+             clipCell(r.reason_for_recall, null);
+    }
     async function submitCheck() {
       const drug = document.getElementById('checkDrug').value.trim();
       const cls = document.getElementById('checkClass').value;
@@ -450,15 +473,16 @@
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        let html = '<table class="result-table"><tr><th>Recall #</th><th>Date</th><th>Classification</th><th>Product</th><th>Reason</th></tr>';
-        if (data.results && data.results.length > 0) {
-          data.results.slice(0, 10).forEach((r) => {
-            html += `<tr><td><code>${esc(r.recall_number)}</code></td><td>${fmtDate(r.recall_initiation_date)}</td><td>${getClassBadge(r.classification)}</td><td>${esc(truncate(r.product_description || 'N/A', 60))}</td><td>${esc(truncate(r.reason_for_recall || '', 60))}</td></tr>`;
-          });
-        } else {
-          html += '<tr><td colspan="5" style="text-align:center;">No recall records found</td></tr>';
+        if (!data.results || data.results.length === 0) {
+          resultDiv.innerHTML = '<div class="empty-state">✅ No active recalls found for this drug. That\'s good news!</div>';
+          return;
         }
-        html += '</table>';
+        widen('checkContent');
+        let html = tableHead(['Recall #', 'Date', 'Class', 'Product', 'Reason']);
+        data.results.slice(0, 10).forEach((r) => {
+          html += '<tr>' + rowCommon(r, drug) + '</tr>';
+        });
+        html += '</table></div>';
         resultDiv.innerHTML = html;
       } catch (err) {
         resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
@@ -478,15 +502,16 @@
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        let html = '<table class="result-table"><tr><th>Recall #</th><th>Date</th><th>Classification</th><th>Product</th><th>Reason</th></tr>';
-        if (data.results && data.results.length > 0) {
-          data.results.forEach((r) => {
-            html += `<tr><td><code>${esc(r.recall_number)}</code></td><td>${fmtDate(r.recall_initiation_date)}</td><td>${getClassBadge(r.classification)}</td><td>${esc(truncate(r.product_description || 'N/A', 60))}</td><td>${esc(truncate(r.reason_for_recall || '', 60))}</td></tr>`;
-          });
-        } else {
-          html += '<tr><td colspan="5" style="text-align:center;">No recall records found</td></tr>';
+        if (!data.results || data.results.length === 0) {
+          resultDiv.innerHTML = '<div class="empty-state">✅ No recalls found for this firm.</div>';
+          return;
         }
-        html += '</table>';
+        widen('firmContent');
+        let html = tableHead(['Recall #', 'Date', 'Class', 'Product', 'Reason']);
+        data.results.forEach((r) => {
+          html += '<tr>' + rowCommon(r, null) + '</tr>';
+        });
+        html += '</table></div>';
         resultDiv.innerHTML = html;
       } catch (err) {
         resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
@@ -505,15 +530,16 @@
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        let html = '<table class="result-table"><tr><th>Date</th><th>Recall #</th><th>Classification</th><th>Product</th><th>Reason</th></tr>';
-        if (data.results && data.results.length > 0) {
-          data.results.forEach((r) => {
-            html += `<tr><td>${fmtDate(r.recall_initiation_date)}</td><td><code>${esc(r.recall_number)}</code></td><td>${getClassBadge(r.classification)}</td><td>${esc(truncate(r.product_description || '', 60))}</td><td>${esc(truncate(r.reason_for_recall || '', 60))}</td></tr>`;
-          });
-        } else {
-          html += '<tr><td colspan="5" style="text-align:center;">No recalls in this period</td></tr>';
+        if (!data.results || data.results.length === 0) {
+          resultDiv.innerHTML = '<div class="empty-state">✅ No recalls in this period.</div>';
+          return;
         }
-        html += '</table>';
+        widen('recentContent');
+        let html = tableHead(['Recall #', 'Date', 'Class', 'Product', 'Reason']);
+        data.results.forEach((r) => {
+          html += '<tr>' + rowCommon(r, null) + '</tr>';
+        });
+        html += '</table></div>';
         resultDiv.innerHTML = html;
       } catch (err) {
         resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
@@ -537,12 +563,18 @@
           resultDiv.innerHTML = '<div class="error-box">No recall found for that number.</div>';
           return;
         }
-        let html = '<div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin-top: 16px; font-size: 0.85rem;">';
-        html += `<p><strong>Recall #:</strong> ${esc(rec.recall_number || 'N/A')}</p>`;
+        let lots = '';
+        if (rec.code_info) {
+          lots = `<p><strong>Lots / Expiry:</strong> ${esc(rec.code_info)}</p>`;
+        }
+        let html = '<div style="background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; margin-top: 16px; font-size: 0.9rem; line-height: 1.8;">';
+        html += `<p><strong>Recall #:</strong> <code>${esc(rec.recall_number || 'N/A')}</code></p>`;
         html += `<p><strong>Classification:</strong> ${getClassBadge(rec.classification)}</p>`;
+        html += `<p><strong>Status:</strong> ${esc(rec.status || 'N/A')}</p>`;
         html += `<p><strong>Firm:</strong> ${esc(rec.recalling_firm || 'N/A')}</p>`;
         html += `<p><strong>Product:</strong> ${esc(rec.product_description || 'N/A')}</p>`;
         html += `<p><strong>Reason:</strong> ${esc(rec.reason_for_recall || 'N/A')}</p>`;
+        html += lots;
         html += `<p><strong>Date Initiated:</strong> ${fmtDate(rec.recall_initiation_date)}</p>`;
         html += '</div>';
         resultDiv.innerHTML = html;
