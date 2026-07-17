@@ -79,36 +79,29 @@
       margin-bottom: 40px;
     }
     .card {
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid rgba(220, 38, 38, 0.35);
       border-radius: 16px;
       padding: 24px;
       transition: all 0.3s ease;
       cursor: pointer;
+      box-shadow: inset 0 0 30px rgba(220, 38, 38, 0.1), 0 8px 32px rgba(0, 0, 0, 0.3);
     }
     .card:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(220, 38, 38, 0.5);
       transform: translateY(-4px);
+      box-shadow: inset 0 0 40px rgba(220, 38, 38, 0.15), 0 12px 48px rgba(0, 0, 0, 0.4);
     }
     .card.red-accent { border-top: 3px solid #dc2626; }
     .card.orange-accent { border-top: 3px solid #ea580c; }
     .card.amber-accent { border-top: 3px solid #d97706; }
     .card.burgundy-accent { border-top: 3px solid #7c1d12; }
     .card-icon { font-size: 2.5rem; margin-bottom: 12px; }
-    .card h3 {
-      font-size: 1.2rem;
-      margin-bottom: 8px;
-      color: #fff;
-    }
-    .card p {
-      font-size: 0.9rem;
-      color: #a0a0a0;
-      margin-bottom: 16px;
-      line-height: 1.5;
-    }
+    .card h3 { font-size: 1.2rem; margin-bottom: 8px; color: #fff; }
+    .card p { font-size: 0.9rem; color: #a0a0a0; margin-bottom: 16px; line-height: 1.5; }
     .card-btn {
       width: 100%;
       padding: 10px;
@@ -136,9 +129,9 @@
     .modal.open { display: flex; }
     .modal-content {
       background: rgba(30, 25, 35, 0.95);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(220, 38, 38, 0.3);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 2px solid rgba(220, 38, 38, 0.4);
       border-radius: 16px;
       padding: 30px;
       max-width: 500px;
@@ -146,6 +139,7 @@
       max-height: 80vh;
       overflow-y: auto;
       position: relative;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
     }
     .modal-close {
       position: absolute;
@@ -156,23 +150,13 @@
       color: #fff;
       font-size: 1.5rem;
       cursor: pointer;
+      transition: all 0.2s ease;
     }
-    .modal h2 {
-      font-size: 1.4rem;
-      margin-bottom: 20px;
-      color: #fff;
-    }
-    .form-group {
-      margin-bottom: 16px;
-    }
-    .form-group label {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 0.9rem;
-      color: #b0b0b0;
-    }
-    .form-group input,
-    .form-group select {
+    .modal-close:hover { color: #fca5a5; }
+    .modal h2 { font-size: 1.4rem; margin-bottom: 20px; color: #fff; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-size: 0.9rem; color: #b0b0b0; }
+    .form-group input, .form-group select {
       width: 100%;
       padding: 10px;
       background: rgba(255, 255, 255, 0.08);
@@ -181,26 +165,15 @@
       color: #fff;
       font-size: 1rem;
     }
-    .form-group input::placeholder {
-      color: #707070;
-    }
-    .form-group input:focus,
-    .form-group select:focus {
+    .form-group input::placeholder { color: #707070; }
+    .form-group input:focus, .form-group select:focus {
       outline: none;
       background: rgba(255, 255, 255, 0.12);
       border-color: rgba(220, 38, 38, 0.5);
     }
     .form-group select option { background: #1a1420; }
-    .slider-label {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 6px;
-      font-size: 0.9rem;
-    }
-    input[type="range"] {
-      width: 100%;
-      cursor: pointer;
-    }
+    .slider-label { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem; }
+    input[type="range"] { width: 100%; cursor: pointer; }
     .modal-btn {
       width: 100%;
       padding: 12px;
@@ -214,10 +187,7 @@
       margin-top: 10px;
     }
     .modal-btn:hover { transform: scale(1.02); }
-    .modal-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    .modal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .spinner {
       border: 3px solid rgba(220, 38, 38, 0.2);
       border-top: 3px solid #dc2626;
@@ -233,6 +203,7 @@
       border-collapse: collapse;
       margin-top: 20px;
       font-size: 0.85rem;
+      table-layout: fixed;
     }
     .result-table th {
       background: rgba(220, 38, 38, 0.15);
@@ -240,32 +211,32 @@
       text-align: left;
       font-weight: 600;
       border-bottom: 1px solid rgba(220, 38, 38, 0.3);
+      word-break: break-word;
     }
     .result-table td {
       padding: 10px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      word-break: break-word;
     }
     .result-table tr:hover { background: rgba(255, 255, 255, 0.03); }
+    .result-table code {
+      background: rgba(220, 38, 38, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 0.8rem;
+    }
     .badge {
       display: inline-block;
       padding: 4px 8px;
       border-radius: 4px;
       font-size: 0.75rem;
       font-weight: 600;
+      white-space: nowrap;
     }
     .badge-red { background: #7c1d12; color: #fca5a5; }
     .badge-yellow { background: #713f12; color: #fcd34d; }
     .badge-gray { background: #374151; color: #d1d5db; }
-    .disclaimer {
-      background: rgba(220, 38, 38, 0.1);
-      border: 1px solid rgba(220, 38, 38, 0.3);
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 0.8rem;
-      color: #fca5a5;
-      margin-top: 20px;
-      line-height: 1.5;
-    }
     .error-box {
       background: rgba(220, 38, 38, 0.2);
       border: 1px solid #dc2626;
@@ -273,23 +244,27 @@
       padding: 12px;
       color: #fca5a5;
       margin-top: 20px;
+      font-size: 0.9rem;
     }
     .footer {
       text-align: center;
       padding: 40px 20px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      font-size: 0.85rem;
-      color: #707070;
+      margin-top: 60px;
+      border-top: 1px solid rgba(220, 38, 38, 0.3);
+      background: rgba(220, 38, 38, 0.08);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
     }
+    .footer-main { font-size: 0.85rem; color: #707070; margin-bottom: 16px; }
+    .footer-disclaimer { font-size: 0.8rem; color: #fca5a5; line-height: 1.6; max-width: 800px; margin: 0 auto; }
     @media (max-width: 768px) {
-      body::before {
-        backdrop-filter: blur(11px);
-        -webkit-backdrop-filter: blur(11px);
-      }
-      .card { backdrop-filter: blur(11px); -webkit-backdrop-filter: blur(11px); }
-      .modal-content { backdrop-filter: blur(11px); -webkit-backdrop-filter: blur(11px); }
+      .card { backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); }
+      .modal-content { backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
       .hero h1 { font-size: 1.8rem; }
       .hero { padding: 40px 20px; }
+      .result-table { font-size: 0.8rem; }
+      .result-table td, .result-table th { padding: 8px; }
     }
   </style>
 </head>
@@ -304,33 +279,25 @@
         <div class="chip" onclick="prefillRecent(7)">This Week</div>
       </div>
     </div>
-
     <div class="grid">
-      <!-- Card 1: Check Drug -->
       <div class="card red-accent">
         <div class="card-icon">💊</div>
         <h3>Check Drug</h3>
         <p>Search for active FDA recalls mentioning a drug.</p>
         <button class="card-btn" onclick="openModal('checkModal')">Open</button>
       </div>
-
-      <!-- Card 2: Recalls by Firm -->
       <div class="card orange-accent">
         <div class="card-icon">🏭</div>
         <h3>Recalls by Firm</h3>
         <p>Find all recalls issued by a specific manufacturer.</p>
         <button class="card-btn" onclick="openModal('firmModal')">Open</button>
       </div>
-
-      <!-- Card 3: Recent Recalls -->
       <div class="card amber-accent">
         <div class="card-icon">📅</div>
         <h3>Recent Recalls</h3>
         <p>Track recalls issued in the last N days.</p>
         <button class="card-btn" onclick="openModal('recentModal')">Open</button>
       </div>
-
-      <!-- Card 4: By Recall Number -->
       <div class="card burgundy-accent">
         <div class="card-icon">🔎</div>
         <h3>By Recall Number</h3>
@@ -339,8 +306,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Modal: Check Drug -->
   <div class="modal" id="checkModal">
     <div class="modal-content">
       <button class="modal-close" onclick="closeModal('checkModal')">×</button>
@@ -362,8 +327,6 @@
       <div id="checkResult"></div>
     </div>
   </div>
-
-  <!-- Modal: Recalls by Firm -->
   <div class="modal" id="firmModal">
     <div class="modal-content">
       <button class="modal-close" onclick="closeModal('firmModal')">×</button>
@@ -383,8 +346,6 @@
       <div id="firmResult"></div>
     </div>
   </div>
-
-  <!-- Modal: Recent Recalls -->
   <div class="modal" id="recentModal">
     <div class="modal-content">
       <button class="modal-close" onclick="closeModal('recentModal')">×</button>
@@ -407,8 +368,6 @@
       <div id="recentResult"></div>
     </div>
   </div>
-
-  <!-- Modal: By Recall Number -->
   <div class="modal" id="referenceModal">
     <div class="modal-content">
       <button class="modal-close" onclick="closeModal('referenceModal')">×</button>
@@ -421,27 +380,30 @@
       <div id="referenceResult"></div>
     </div>
   </div>
-
   <div class="footer">
-    Data: openFDA · U.S. Food and Drug Administration. Not medical or legal advice.
+    <div class="footer-main">
+      Data: openFDA · U.S. Food and Drug Administration. Not medical or legal advice.
+    </div>
+    <div class="footer-disclaimer">
+      ⚠️ Do not rely on openFDA for medical decisions. This is enforcement data only, not medical advice.
+    </div>
   </div>
-
   <script>
     function esc(str) {
       const div = document.createElement('div');
       div.textContent = str == null ? '' : str;
       return div.innerHTML;
     }
-
+    function truncate(text, maxLen = 60) {
+      if (!text) return '—';
+      return text.length > maxLen ? text.substring(0, maxLen) + '…' : text;
+    }
     function openModal(id) {
       document.getElementById(id).classList.add('open');
     }
-
     function closeModal(id) {
       document.getElementById(id).classList.remove('open');
     }
-
-    // backdrop click + Esc (registered once, not per-open)
     ['checkModal', 'firmModal', 'recentModal', 'referenceModal'].forEach((id) => {
       document.getElementById(id).addEventListener('click', (e) => {
         if (e.target.id === id) closeModal(id);
@@ -452,14 +414,11 @@
         ['checkModal', 'firmModal', 'recentModal', 'referenceModal'].forEach(closeModal);
       }
     });
-
     function updateLabel(labelId, value) {
       document.getElementById(labelId).textContent = value;
     }
-
     function fmtDate(s) {
       if (!s) return 'N/A';
-      // openFDA dates are YYYYMMDD
       const m = /^(\d{4})(\d{2})(\d{2})$/.exec(s);
       if (m) s = `${m[1]}-${m[2]}-${m[3]}`;
       try {
@@ -470,8 +429,6 @@
         return s;
       }
     }
-
-    // openFDA returns "Class I" / "Class II" / "Class III"
     function getClassBadge(cls) {
       const c = String(cls || '').replace(/^Class\s+/i, '');
       if (c === 'I') return '<span class="badge badge-red">Class I</span>';
@@ -479,15 +436,12 @@
       if (c === 'III') return '<span class="badge badge-gray">Class III</span>';
       return `<span class="badge badge-gray">${esc(cls || 'N/A')}</span>`;
     }
-
     async function submitCheck() {
       const drug = document.getElementById('checkDrug').value.trim();
       const cls = document.getElementById('checkClass').value;
       const resultDiv = document.getElementById('checkResult');
       if (!drug) { resultDiv.innerHTML = '<div class="error-box">Please enter a drug name.</div>'; return; }
-
       resultDiv.innerHTML = '<div class="spinner"></div>';
-
       try {
         const res = await fetch('/api/check', {
           method: 'POST',
@@ -496,31 +450,26 @@
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-
-        let html = '<table class="result-table"><tr><th>Recall #</th><th>Classification</th><th>Firm</th><th>Reason</th></tr>';
+        let html = '<table class="result-table"><tr><th>Recall #</th><th>Date</th><th>Classification</th><th>Product</th><th>Reason</th></tr>';
         if (data.results && data.results.length > 0) {
           data.results.slice(0, 10).forEach((r) => {
-            html += `<tr><td><code>${esc(r.recall_number)}</code></td><td>${getClassBadge(r.classification)}</td><td>${esc(r.recalling_firm || 'N/A')}</td><td>${esc((r.reason_for_recall || '').substring(0, 50))}</td></tr>`;
+            html += `<tr><td><code>${esc(r.recall_number)}</code></td><td>${fmtDate(r.recall_initiation_date)}</td><td>${getClassBadge(r.classification)}</td><td>${esc(truncate(r.product_description || 'N/A', 60))}</td><td>${esc(truncate(r.reason_for_recall || '', 60))}</td></tr>`;
           });
         } else {
-          html += '<tr><td colspan="4" style="text-align:center;">No recall records found</td></tr>';
+          html += '<tr><td colspan="5" style="text-align:center;">No recall records found</td></tr>';
         }
         html += '</table>';
-        html += '<div class="disclaimer">⚠️ Do not rely on openFDA for medical decisions. This is enforcement data only, not medical advice.</div>';
         resultDiv.innerHTML = html;
       } catch (err) {
         resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
       }
     }
-
     async function submitFirm() {
       const firm = document.getElementById('firmName').value.trim();
       const limit = parseInt(document.getElementById('firmLimit').value);
       const resultDiv = document.getElementById('firmResult');
       if (!firm) { resultDiv.innerHTML = '<div class="error-box">Please enter a firm name.</div>'; return; }
-
       resultDiv.innerHTML = '<div class="spinner"></div>';
-
       try {
         const res = await fetch('/api/firm', {
           method: 'POST',
@@ -529,30 +478,25 @@
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-
-        let html = '<table class="result-table"><tr><th>Recall #</th><th>Drug</th><th>Reason</th><th>Date</th></tr>';
+        let html = '<table class="result-table"><tr><th>Recall #</th><th>Date</th><th>Classification</th><th>Product</th><th>Reason</th></tr>';
         if (data.results && data.results.length > 0) {
           data.results.forEach((r) => {
-            html += `<tr><td><code>${esc(r.recall_number)}</code></td><td>${esc(r.product_description || 'N/A')}</td><td>${esc((r.reason_for_recall || '').substring(0, 40))}</td><td>${fmtDate(r.recall_initiation_date)}</td></tr>`;
+            html += `<tr><td><code>${esc(r.recall_number)}</code></td><td>${fmtDate(r.recall_initiation_date)}</td><td>${getClassBadge(r.classification)}</td><td>${esc(truncate(r.product_description || 'N/A', 60))}</td><td>${esc(truncate(r.reason_for_recall || '', 60))}</td></tr>`;
           });
         } else {
-          html += '<tr><td colspan="4" style="text-align:center;">No recall records found</td></tr>';
+          html += '<tr><td colspan="5" style="text-align:center;">No recall records found</td></tr>';
         }
         html += '</table>';
-        html += '<div class="disclaimer">⚠️ Do not rely on openFDA for medical decisions. This is enforcement data only.</div>';
         resultDiv.innerHTML = html;
       } catch (err) {
         resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
       }
     }
-
     async function submitRecent() {
       const days = parseInt(document.getElementById('recentDays').value);
       const limit = parseInt(document.getElementById('recentLimit').value);
-
       const resultDiv = document.getElementById('recentResult');
       resultDiv.innerHTML = '<div class="spinner"></div>';
-
       try {
         const res = await fetch('/api/recent', {
           method: 'POST',
@@ -561,30 +505,25 @@
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-
-        let html = '<table class="result-table"><tr><th>Date</th><th>Recall #</th><th>Class</th><th>Drug / Firm</th></tr>';
+        let html = '<table class="result-table"><tr><th>Date</th><th>Recall #</th><th>Classification</th><th>Product</th><th>Reason</th></tr>';
         if (data.results && data.results.length > 0) {
           data.results.forEach((r) => {
-            html += `<tr><td>${fmtDate(r.recall_initiation_date)}</td><td><code>${esc(r.recall_number)}</code></td><td>${getClassBadge(r.classification)}</td><td>${esc((r.product_description || '').substring(0, 50))}</td></tr>`;
+            html += `<tr><td>${fmtDate(r.recall_initiation_date)}</td><td><code>${esc(r.recall_number)}</code></td><td>${getClassBadge(r.classification)}</td><td>${esc(truncate(r.product_description || '', 60))}</td><td>${esc(truncate(r.reason_for_recall || '', 60))}</td></tr>`;
           });
         } else {
-          html += '<tr><td colspan="4" style="text-align:center;">No recalls in this period</td></tr>';
+          html += '<tr><td colspan="5" style="text-align:center;">No recalls in this period</td></tr>';
         }
         html += '</table>';
-        html += '<div class="disclaimer">⚠️ Do not rely on openFDA for medical decisions. This is enforcement data only.</div>';
         resultDiv.innerHTML = html;
       } catch (err) {
         resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
       }
     }
-
     async function submitReference() {
       const recallNumber = document.getElementById('recallNumber').value.trim().toUpperCase();
       const resultDiv = document.getElementById('referenceResult');
       if (!recallNumber) { resultDiv.innerHTML = '<div class="error-box">Please enter a recall number.</div>'; return; }
-
       resultDiv.innerHTML = '<div class="spinner"></div>';
-
       try {
         const res = await fetch('/api/reference', {
           method: 'POST',
@@ -593,14 +532,11 @@
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        // The CLI wraps the record as { meta, results: [ {...} ] }
         const rec = (data.results && data.results[0]) || data;
-
         if (!rec || !rec.recall_number) {
           resultDiv.innerHTML = '<div class="error-box">No recall found for that number.</div>';
           return;
         }
-
         let html = '<div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin-top: 16px; font-size: 0.85rem;">';
         html += `<p><strong>Recall #:</strong> ${esc(rec.recall_number || 'N/A')}</p>`;
         html += `<p><strong>Classification:</strong> ${getClassBadge(rec.classification)}</p>`;
@@ -609,23 +545,19 @@
         html += `<p><strong>Reason:</strong> ${esc(rec.reason_for_recall || 'N/A')}</p>`;
         html += `<p><strong>Date Initiated:</strong> ${fmtDate(rec.recall_initiation_date)}</p>`;
         html += '</div>';
-        html += '<div class="disclaimer">⚠️ Do not rely on openFDA for medical decisions. This is enforcement data only.</div>';
         resultDiv.innerHTML = html;
       } catch (err) {
         resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
       }
     }
-
     function prefillCheck(drug) {
       document.getElementById('checkDrug').value = drug;
       openModal('checkModal');
     }
-
     function prefillFirm(firm) {
       document.getElementById('firmName').value = firm;
       openModal('firmModal');
     }
-
     function prefillRecent(days) {
       document.getElementById('recentDays').value = days;
       document.getElementById('recentDaysVal').textContent = days;
