@@ -26,7 +26,7 @@
     .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
     .hero {
       text-align: center;
-      padding: 60px 20px;
+      padding: 50px 20px 40px;
       background: linear-gradient(135deg, rgba(30, 20, 20, 0.7), rgba(40, 15, 15, 0.7));
       border-radius: 20px;
       backdrop-filter: blur(15px);
@@ -43,19 +43,38 @@
       margin-bottom: 10px;
       font-weight: 700;
     }
-    .hero p { font-size: 1rem; color: #b0b0b0; margin-bottom: 30px; line-height: 1.6; }
-    .hero-chips { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+    .hero p { font-size: 1rem; color: #b0b0b0; margin-bottom: 26px; line-height: 1.6; }
+    .chip-group-label {
+      font-size: 0.8rem;
+      color: #909090;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .hero-chips {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
     .chip {
-      padding: 8px 16px;
+      padding: 7px 14px;
       background: rgba(220, 38, 38, 0.15);
       border: 1px solid rgba(220, 38, 38, 0.4);
       border-radius: 20px;
       color: #fca5a5;
       cursor: pointer;
       transition: all 0.3s ease;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
     .chip:hover { background: rgba(220, 38, 38, 0.25); border-color: rgba(220, 38, 38, 0.6); }
+    .chip.firm-chip {
+      background: rgba(234, 88, 12, 0.15);
+      border-color: rgba(234, 88, 12, 0.4);
+      color: #fdba74;
+    }
+    .chip.firm-chip:hover { background: rgba(234, 88, 12, 0.25); border-color: rgba(234, 88, 12, 0.6); }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -265,7 +284,7 @@
       .card { backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); }
       .modal-content { backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); padding: 20px; }
       .hero h1 { font-size: 1.8rem; }
-      .hero { padding: 40px 20px; }
+      .hero { padding: 40px 16px 30px; }
       .result-table { font-size: 0.8rem; }
       .result-table td, .result-table th { padding: 8px; }
       .result-table td.clip { max-width: 200px; }
@@ -277,10 +296,31 @@
     <div class="hero">
       <h1>⚠️ FDA Drug Recall Tracker</h1>
       <p>Check active FDA recalls by drug name, manufacturer, or date.<br>Powered by openFDA. Not medical advice.</p>
+      <div class="chip-group-label">💊 Popular drugs</div>
       <div class="hero-chips">
         <div class="chip" onclick="prefillCheck('Aspirin')">Aspirin</div>
-        <div class="chip" onclick="prefillFirm('Pfizer')">Pfizer</div>
-        <div class="chip" onclick="prefillRecent(7)">This Week</div>
+        <div class="chip" onclick="prefillCheck('Ibuprofen')">Ibuprofen</div>
+        <div class="chip" onclick="prefillCheck('Acetaminophen')">Acetaminophen</div>
+        <div class="chip" onclick="prefillCheck('Metformin')">Metformin</div>
+        <div class="chip" onclick="prefillCheck('Losartan')">Losartan</div>
+        <div class="chip" onclick="prefillCheck('Amoxicillin')">Amoxicillin</div>
+        <div class="chip" onclick="prefillCheck('Atorvastatin')">Atorvastatin</div>
+        <div class="chip" onclick="prefillCheck('Omeprazole')">Omeprazole</div>
+        <div class="chip" onclick="prefillCheck('Insulin')">Insulin</div>
+        <div class="chip" onclick="prefillCheck('Duloxetine')">Duloxetine</div>
+      </div>
+      <div class="chip-group-label">🏭 Major manufacturers</div>
+      <div class="hero-chips" style="margin-bottom: 4px;">
+        <div class="chip firm-chip" onclick="prefillFirm('Pfizer')">Pfizer</div>
+        <div class="chip firm-chip" onclick="prefillFirm('Teva')">Teva</div>
+        <div class="chip firm-chip" onclick="prefillFirm('Sandoz')">Sandoz</div>
+        <div class="chip firm-chip" onclick="prefillFirm('Aurobindo')">Aurobindo</div>
+        <div class="chip firm-chip" onclick="prefillFirm('Hospira')">Hospira</div>
+        <div class="chip firm-chip" onclick="prefillFirm('Sun Pharma')">Sun Pharma</div>
+        <div class="chip firm-chip" onclick="prefillFirm('Dr. Reddy')">Dr. Reddy's</div>
+        <div class="chip firm-chip" onclick="prefillFirm('Amneal')">Amneal</div>
+        <div class="chip firm-chip" onclick="prefillFirm('Glenmark')">Glenmark</div>
+        <div class="chip firm-chip" onclick="prefillFirm('Zydus')">Zydus</div>
       </div>
     </div>
     <div class="grid">
