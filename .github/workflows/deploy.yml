@@ -21,6 +21,14 @@ jobs:
         with:
           lfs: true
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test -race ./...
+
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -41,4 +49,3 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
