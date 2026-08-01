@@ -35,7 +35,8 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	log.Printf("recallis listening on 0.0.0.0:%s (CLI=%s, timeout=%s)", port, cliBinary(), cliRunTimeout)
+	log.Printf("recallis listening on 0.0.0.0:%s (CLI=%s, timeout=%s, slots=%d)",
+		port, cliBinary(), cliRunTimeout, cliSem.capacity())
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
@@ -61,7 +62,17 @@ func cliBinary() string {
 	return "./drug-enforcement-pp-cli"
 }
 
+// runCLI runs the child CLI, bounded by both a concurrency slot and a deadline.
+//
+// The slot is acquired BEFORE the timeout starts. The other order would let a
+// request spend most of its 120s budget queueing and then time out with the CLI
+// barely started — failing for a reason that has nothing to do with the work.
 func runCLI(ctx context.Context, args ...string) ([]byte, error) {
+	if err := cliSem.acquire(ctx); err != nil {
+		return nil, err
+	}
+	defer cliSem.release()
+
 	ctx, cancel := context.WithTimeout(ctx, cliRunTimeout)
 	defer cancel()
 
@@ -112,7 +123,7 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 	out, err := runCLI(r.Context(), args...)
 	if err != nil {
 		log.Print(err)
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		writeCLIError(w, err)
 		return
 	}
 	writeRaw(w, out)
@@ -147,7 +158,7 @@ func handleFirm(w http.ResponseWriter, r *http.Request) {
 	out, err := runCLI(r.Context(), args...)
 	if err != nil {
 		log.Print(err)
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		writeCLIError(w, err)
 		return
 	}
 	writeRaw(w, out)
@@ -181,7 +192,7 @@ func handleRecent(w http.ResponseWriter, r *http.Request) {
 	out, err := runCLI(r.Context(), args...)
 	if err != nil {
 		log.Print(err)
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		writeCLIError(w, err)
 		return
 	}
 	writeRaw(w, out)
@@ -212,7 +223,7 @@ func handleReference(w http.ResponseWriter, r *http.Request) {
 	out, err := runCLI(r.Context(), args...)
 	if err != nil {
 		log.Print(err)
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		writeCLIError(w, err)
 		return
 	}
 	writeRaw(w, out)
