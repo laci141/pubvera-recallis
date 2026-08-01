@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,6 +10,10 @@ import (
 	"os/exec"
 	"time"
 )
+
+// cliRunTimeout a gyerekfolyamat felső határideje. Eddig SEMMILYEN nem volt:
+// egy beragadt CLI a folyamat végéig futott.
+const cliRunTimeout = 120 * time.Second
 
 func main() {
 	port := os.Getenv("PORT")
@@ -30,7 +35,7 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	log.Printf("recallis listening on 0.0.0.0:%s (CLI=%s)", port, cliBinary())
+	log.Printf("recallis listening on 0.0.0.0:%s (CLI=%s, timeout=%s)", port, cliBinary(), cliRunTimeout)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
@@ -56,13 +61,17 @@ func cliBinary() string {
 	return "./drug-enforcement-pp-cli"
 }
 
-func runCLI(args ...string) ([]byte, error) {
+func runCLI(ctx context.Context, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, cliRunTimeout)
+	defer cancel()
+
 	bin := cliBinary()
-	cmd := exec.Command(bin, args...)
-	var out []byte
-	var err error
-	out, err = cmd.Output()
+	cmd := exec.CommandContext(ctx, bin, args...)
+	out, err := cmd.Output()
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("CLI stopped after %s: %v", cliRunTimeout, ctxErr)
+		}
 		return nil, fmt.Errorf("CLI error: %v", err)
 	}
 	return out, nil
@@ -100,7 +109,7 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	args = append(args, "--json")
 
-	out, err := runCLI(args...)
+	out, err := runCLI(r.Context(), args...)
 	if err != nil {
 		log.Print(err)
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -135,7 +144,7 @@ func handleFirm(w http.ResponseWriter, r *http.Request) {
 
 	args := []string{"firm", req.Firm, "--limit", fmt.Sprintf("%d", req.Limit), "--json"}
 
-	out, err := runCLI(args...)
+	out, err := runCLI(r.Context(), args...)
 	if err != nil {
 		log.Print(err)
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -169,7 +178,7 @@ func handleRecent(w http.ResponseWriter, r *http.Request) {
 
 	args := []string{"recent", "--days", fmt.Sprintf("%d", req.Days), "--limit", fmt.Sprintf("%d", req.Limit), "--json"}
 
-	out, err := runCLI(args...)
+	out, err := runCLI(r.Context(), args...)
 	if err != nil {
 		log.Print(err)
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -200,7 +209,7 @@ func handleReference(w http.ResponseWriter, r *http.Request) {
 
 	args := []string{"reference", req.RecallNumber, "--json"}
 
-	out, err := runCLI(args...)
+	out, err := runCLI(r.Context(), args...)
 	if err != nil {
 		log.Print(err)
 		http.Error(w, err.Error(), http.StatusBadGateway)
