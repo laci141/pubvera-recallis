@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recallis — Drug Recall & Enforcement Search</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233b82f6'/%3E%3Cg fill='%23ffffff' transform='translate(32 32) scale(0.82) translate(-32 -32)'%3E%3Crect x='6' y='11' width='42' height='8.1' rx='3.7'/%3E%3Crect x='11.3' y='24' width='31.3' height='8.1' rx='3.7'/%3E%3Crect x='16.7' y='37' width='20.7' height='8.1' rx='3.7'/%3E%3Crect x='22' y='50' width='10' height='8.1' rx='3.7'/%3E%3Crect x='51' y='25.3' width='7' height='5.5' rx='2.75' opacity='0.74'/%3E%3Crect x='51' y='38.3' width='7' height='5.5' rx='2.75' opacity='0.94'/%3E%3Crect x='51' y='51.3' width='7' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
   <meta name="description" content="Recallis — search FDA drug recalls and enforcement reports by drug name, manufacturer or classification. Open data from the openFDA public API, no key required.">
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <style>
@@ -29,7 +30,39 @@
       pointer-events: none;
       z-index: -1;
     }
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    /* BRAND BAR — Pubvera mark + wordmark, links back to the hub. The SVG is
+       inlined rather than linked from pubvera.com so the app does not depend
+       on Cloudflare Pages being up, and so the mark can inherit currentColor. */
+    .brand-bar {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.5rem 0.9rem;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      backdrop-filter: blur(15px) saturate(160%);
+      -webkit-backdrop-filter: blur(15px) saturate(160%);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      text-decoration: none;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .brand-bar:hover {
+      border-color: rgba(234, 88, 12, 0.6);
+      transform: translateY(-1px);
+    }
+    .brand-mark { color: #60a5fa; flex-shrink: 0; }
+    .brand-word {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #e8eef7;
+      letter-spacing: -0.01em;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 72px 20px 20px; }
     .hero {
       text-align: center;
       padding: 40px 20px 32px;
@@ -364,6 +397,15 @@
       .hero h1 { font-size: 1.6rem; }
       .hero { padding: 30px 14px 24px; }
       .hero p { white-space: normal; }
+      .container { padding: 56px 20px 20px; }
+      .brand-bar {
+        top: 0.5rem;
+        left: 0.5rem;
+        padding: 0.35rem 0.5rem;
+        backdrop-filter: blur(11px) saturate(160%);
+        -webkit-backdrop-filter: blur(11px) saturate(160%);
+      }
+      .brand-word { font-size: 0.82rem; }
       .result-table { font-size: 0.8rem; }
       .result-table td, .result-table th { padding: 8px; }
       .result-table td.clip { max-width: 200px; }
@@ -371,9 +413,23 @@
   </style>
 </head>
 <body>
+  <a class="brand-bar" href="https://pubvera.com" aria-label="Pubvera — back to all tools">
+    <svg class="brand-mark" viewBox="0 0 64 64" width="22" height="22" aria-hidden="true" focusable="false">
+      <g fill="currentColor">
+        <rect x="6.0" y="11.0" width="42.0" height="8.1" rx="3.7"/>
+        <rect x="11.3" y="24.0" width="31.3" height="8.1" rx="3.7"/>
+        <rect x="16.7" y="37.0" width="20.7" height="8.1" rx="3.7"/>
+        <rect x="22.0" y="50.0" width="10.0" height="8.1" rx="3.7"/>
+        <rect x="51" y="25.3" width="7" height="5.5" rx="2.75" opacity="0.55"/>
+        <rect x="51" y="38.3" width="7" height="5.5" rx="2.75" opacity="0.70"/>
+        <rect x="51" y="51.3" width="7" height="5.5" rx="2.75" opacity="0.88"/>
+      </g>
+    </svg>
+    <span class="brand-word">Pubvera</span>
+  </a>
   <div class="container">
     <div class="hero">
-      <h1>Pubvera · Recallis</h1>
+      <h1>Recallis</h1>
       <p>Search FDA drug recalls and enforcement reports by drug, firm or classification — open data, keyless.</p>
       <div class="chip-group-label">💊 Popular drugs</div>
       <div class="hero-chips">
