@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -62,13 +63,35 @@ func cliBinary() string {
 	return "./drug-enforcement-pp-cli"
 }
 
+// cliCmdLabel names the subcommand for the log without leaking user input.
+// Every caller in this file builds args with a fixed verb first and the user's
+// value second (check <drug>, firm <firm>, recent --days N, reference <number>),
+// so only the first element is safe to log.
+func cliCmdLabel(args []string) string {
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		return "?"
+	}
+	return args[0]
+}
+
 // runCLI runs the child CLI, bounded by both a concurrency slot and a deadline.
 //
 // The slot is acquired BEFORE the timeout starts. The other order would let a
 // request spend most of its 120s budget queueing and then time out with the CLI
 // barely started — failing for a reason that has nothing to do with the work.
+//
+// wait_ms is the only way to tell whether four slots is the right number: queue
+// time is invisible in the CLI's own runtime, so without it a saturated
+// semaphore and a slow upstream look identical from the outside. A sudden drop
+// in bytes is the earliest sign of a quota or API failure — the run still
+// succeeds and still looks fast, it just carries less back.
 func runCLI(ctx context.Context, args ...string) ([]byte, error) {
-	if err := cliSem.acquire(ctx); err != nil {
+	label := cliCmdLabel(args)
+	waitStart := time.Now()
+	err := cliSem.acquire(ctx)
+	waitMS := time.Since(waitStart).Milliseconds()
+	if err != nil {
+		log.Printf("cli: busy cmd=%s wait_ms=%d err=%v", label, waitMS, err)
 		return nil, err
 	}
 	defer cliSem.release()
@@ -78,13 +101,18 @@ func runCLI(ctx context.Context, args ...string) ([]byte, error) {
 
 	bin := cliBinary()
 	cmd := exec.CommandContext(ctx, bin, args...)
+	runStart := time.Now()
 	out, err := cmd.Output()
+	elapsed := time.Since(runStart).Milliseconds()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
+			log.Printf("cli: fail cmd=%s wait_ms=%d elapsed_ms=%d err=deadline", label, waitMS, elapsed)
 			return nil, fmt.Errorf("CLI stopped after %s: %v", cliRunTimeout, ctxErr)
 		}
+		log.Printf("cli: fail cmd=%s wait_ms=%d elapsed_ms=%d err=%v", label, waitMS, elapsed, err)
 		return nil, fmt.Errorf("CLI error: %v", err)
 	}
+	log.Printf("cli: ok cmd=%s wait_ms=%d elapsed_ms=%d bytes=%d", label, waitMS, elapsed, len(out))
 	return out, nil
 }
 
