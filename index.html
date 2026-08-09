@@ -62,6 +62,82 @@
       color: #e8eef7;
       letter-spacing: -0.01em;
     }
+    /* AUTH BAR (Google sign-in) — .brand-bar here is a FIXED corner pill, so the
+       auth controls mirror it in the opposite corner with the same glass recipe
+       and the two read as one pair. Hidden until /config.json returns a Supabase
+       config. */
+    .auth-bar {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      /* 0.35rem, not 0.4rem: measured in the browser, 0.4rem made this pill
+         38.1px against the brand bar's 37.0px — the two sit side by side, so a
+         pill that is visibly taller than its twin is the tell. */
+      padding: 0.35rem 0.7rem;
+      /* Leaves room for .brand-bar (~130px) plus both insets and a gap, so a long
+         email truncates instead of sliding under the mark on a narrow screen.
+         Percent, not vw: for a fixed element 100% is the layout viewport, while
+         100vw also counts the scrollbar — and that difference is exactly the
+         width by which the two bars would have overlapped. */
+      max-width: calc(100% - 170px);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      backdrop-filter: blur(15px) saturate(160%);
+      -webkit-backdrop-filter: blur(15px) saturate(160%);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    }
+    /* display:flex above would otherwise defeat the hidden attribute. */
+    .auth-bar[hidden] { display: none; }
+    /* min-width:0 is what lets the ellipsis happen: a flex item defaults to
+       min-width:auto and would refuse to shrink below its text. The email is the
+       part that gives way when the bar runs out of room; the buttons stay whole. */
+    .auth-email {
+      font-size: 0.8rem;
+      color: #cdd6ea;
+      max-width: 34vw;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .auth-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #cdd6ea;
+      padding: 0.3rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      /* Pinned: a button's default line box makes the pill taller than the text
+         needs, and the bar has to stay no taller than the brand bar beside it. */
+      line-height: 1;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .auth-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(217, 119, 6, 0.7);
+      color: #fff;
+    }
+    /* Signing in is the primary action while signed out, so that button carries
+       Recallis's amber accent (the same #d97706 as .card.amber-accent);
+       sign-out stays the quiet variant. */
+    .auth-btn.auth-btn-primary {
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      border-color: transparent;
+      color: #2b1503;
+    }
+    .auth-btn.auth-btn-primary:hover {
+      color: #2b1503;
+      box-shadow: 0 8px 24px rgba(217, 119, 6, 0.4);
+    }
     .container { max-width: 1200px; margin: 0 auto; padding: 72px 20px 20px; }
     .hero {
       text-align: center;
@@ -345,6 +421,29 @@
       margin-top: 20px;
       font-size: 0.9rem;
     }
+    /* Auth and quota rejections get a glass card instead of the red one-line box:
+       they carry a heading, an explanation and — for a signed-out visitor — a
+       sign-in button. They are not the user's mistake, so they do not use the red
+       treatment. Same glass recipe as the cards above, nothing new introduced. */
+    .errcard {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-top: 20px;
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .errcard h4 { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .errcard p { font-size: 0.88rem; color: #a0a0a0; line-height: 1.6; }
+    .errcard .modal-btn {
+      width: auto;
+      padding: 9px 20px;
+      font-size: 0.85rem;
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      color: #2b1503;
+    }
     .footer {
       text-align: center;
       padding: 40px 20px;
@@ -406,6 +505,20 @@
         -webkit-backdrop-filter: blur(11px) saturate(160%);
       }
       .brand-word { font-size: 0.82rem; }
+      /* The two bars share the top row on a phone, so the auth bar shrinks in
+         step with the brand bar and the email is allowed less width — the row
+         has to fit beside the mark without pushing the page sideways. */
+      .auth-bar {
+        top: 0.5rem;
+        right: 0.5rem;
+        gap: 0.35rem;
+        padding: 0.3rem 0.5rem;
+        max-width: calc(100% - 140px);
+        backdrop-filter: blur(11px) saturate(160%);
+        -webkit-backdrop-filter: blur(11px) saturate(160%);
+      }
+      .auth-email { font-size: 0.7rem; max-width: 30vw; }
+      .auth-btn { font-size: 0.7rem; padding: 0.25rem 0.6rem; }
       .result-table { font-size: 0.8rem; }
       .result-table td, .result-table th { padding: 8px; }
       .result-table td.clip { max-width: 200px; }
@@ -427,6 +540,14 @@
     </svg>
     <span class="brand-word">Pubvera</span>
   </a>
+  <!-- AUTH BAR — stays hidden until /config.json returns a Supabase config.
+       Without one the page never loads Supabase and behaves exactly as it did
+       before sign-in existed. Wired up by the module script at the end. -->
+  <div class="auth-bar" id="authBar" hidden>
+    <span class="auth-email" id="authEmail" hidden></span>
+    <button type="button" class="auth-btn auth-btn-primary" id="authSignInBtn" hidden>Sign in with Google</button>
+    <button type="button" class="auth-btn" id="authSignOutBtn" hidden>Sign out</button>
+  </div>
   <div class="container">
     <div class="hero">
       <h1>Recallis</h1>
@@ -1031,21 +1152,125 @@
       const toggle = e.target.closest && e.target.closest('.qclass');
       if (toggle) { toggle.classList.toggle('on'); applyTableFilter(resultBox(toggle)); }
     });
+    // ══════════ Fetch plumbing (auth header + error mapping) ══════════
+    // Bearer token for the auth layer sitting in front of the API. Read at
+    // REQUEST time, never cached at page load: the Supabase client refreshes the
+    // access token in the background, so a token captured once at load would be
+    // an hour stale on a page left open. window.sb exists only when /config.json
+    // returned a Supabase config (see the module script at the end of this
+    // file) — without it the request goes out exactly as it did before sign-in
+    // existed, with no Authorization header at all.
+    async function authHeaders() {
+      if (!window.sb) return {};
+      try {
+        const { data: { session } } = await window.sb.auth.getSession();
+        if (session) return { 'Authorization': 'Bearer ' + session.access_token };
+      } catch (e) { /* no token: let the server decide — 401 is handled below */ }
+      return {};
+    }
+
+    // Every /api/* call goes through here, so no call site can miss the header.
+    // /healthz is not routed through it and stays anonymous.
+    async function callApi(path, body, resultDiv) {
+      resultDiv.innerHTML = '<div class="spinner"></div>';
+      // Headers first, before the request is built: getSession() may quietly
+      // refresh an expired token.
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, await authHeaders());
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(body)
+      });
+      // Read as text and parse by hand: this app's own errors come back as plain
+      // text from http.Error (including the CLI's stderr), and the auth layer in
+      // front of the API is not guaranteed to answer with JSON either. The status
+      // has to survive onto the Error object regardless, or errorHTML cannot tell
+      // an auth or quota rejection from an ordinary upstream failure.
+      let text = '';
+      try { text = await res.text(); } catch (e) { /* body unreadable */ }
+      let data, parsed = true;
+      try { data = JSON.parse(text); } catch (e) { parsed = false; }
+      if (!parsed) {
+        const msg = String(text || '').trim();
+        throw apiError(msg
+          ? 'HTTP ' + res.status + ': ' + msg.slice(0, 300)
+          : 'Server returned an unreadable response (HTTP ' + res.status + ').', res, null);
+      }
+      if (!res.ok) throw apiError(data && data.error ? data.error : 'Request failed (HTTP ' + res.status + ').', res, data);
+      return data;
+    }
+    function apiError(message, res, data) {
+      const e = new Error(message);
+      e.status = res.status;
+      e.data = data;
+      return e;
+    }
+
+    // Bridge to the module script at the end of this file: the sign-in button
+    // inside a 401 error card is inline HTML, so it needs a global to call.
+    function pubveraSignIn() {
+      if (window.pubveraAuth) window.pubveraAuth.signIn();
+    }
+
+    // resets_at arrives as an ISO timestamp; show it in the reader's own locale
+    // and fall back to the raw value when it is not a parseable date.
+    function resetsAtText(v) {
+      if (!v) return '';
+      const t = new Date(v);
+      return isNaN(t.getTime())
+        ? String(v)
+        : t.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    // 401/403/503 come from the auth and quota layer in front of the API and each
+    // one means something different to the user; every other failure keeps the
+    // previous behaviour of showing the error text in the one-line red box.
+    function errorHTML(err) {
+      const st = err && err.status, d = (err && err.data) || {};
+      if (st === 401) {
+        // The raw error ("missing/invalid token") tells the user nothing they
+        // can act on, and the remedy is always the same, so it is not shown.
+        const btn = (window.pubveraAuth && window.pubveraAuth.enabled)
+          ? '<button type="button" class="modal-btn" onclick="pubveraSignIn()">Sign in with Google</button>'
+          : '';
+        return '<div class="errcard"><h4>Sign-in required</h4>' +
+          '<p>Please sign in to run this search.</p>' + btn + '</div>';
+      }
+      if (st === 403) {
+        // A valid token that is not allowed through: either the plan does not
+        // include this app, or the period's quota is used up. Upgrading is the
+        // way out of both, but prices belong on the pricing page, not here.
+        if (String(d.reason || '') === 'app_locked') {
+          return '<div class="errcard"><h4>Not included in your plan</h4>' +
+            '<p>Recallis is not part of your current plan. Upgrading your plan unlocks it.</p></div>';
+        }
+        let msg = 'You have used up the searches included in your plan for this period.';
+        const resets = resetsAtText(d.resets_at);
+        if (resets) msg += ' Your quota resets on ' + resets + '.';
+        msg += ' Upgrading your plan raises the limit.';
+        return '<div class="errcard"><h4>Usage limit reached</h4><p>' + esc(msg) + '</p></div>';
+      }
+      if (st === 503) {
+        // The quota service could not be reached, or this server is at capacity
+        // (writeCLIError returns 503 when every CLI slot is taken). Either way
+        // the user did nothing wrong, so this must not read as their failure.
+        return '<div class="errcard"><h4>Temporarily unavailable</h4>' +
+          '<p>The service is temporarily unavailable. Please try again in a moment.</p></div>';
+      }
+      return '<div class="error-box">Error: ' + esc(err && err.message ? err.message : String(err)) + '</div>';
+    }
+    function showError(el, err) {
+      el.innerHTML = errorHTML(err);
+    }
+
     async function submitCheck() {
       const drug = document.getElementById('checkDrug').value.trim();
       const cls = document.getElementById('checkClass').value;
       const resultDiv = document.getElementById('checkResult');
       if (!drug) { resultDiv.innerHTML = '<div class="error-box">Please enter a drug name.</div>'; return; }
       lastData.check = null;
-      resultDiv.innerHTML = '<div class="spinner"></div>';
       try {
-        const res = await fetch('/api/check', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ drug, class: cls || undefined })
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const data = await callApi('/api/check', { drug, class: cls || undefined }, resultDiv);
         if (!data.results || data.results.length === 0) {
           resultDiv.innerHTML = '<div class="empty-state">✅ No active recalls found for this drug. That\'s good news!</div>';
           return;
@@ -1063,7 +1288,7 @@
         resultDiv.innerHTML = html;
         applyTableFilter(resultDiv);
       } catch (err) {
-        resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
+        showError(resultDiv, err);
       }
     }
     async function submitFirm() {
@@ -1072,15 +1297,8 @@
       const resultDiv = document.getElementById('firmResult');
       if (!firm) { resultDiv.innerHTML = '<div class="error-box">Please enter a firm name.</div>'; return; }
       lastData.firm = null;
-      resultDiv.innerHTML = '<div class="spinner"></div>';
       try {
-        const res = await fetch('/api/firm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ firm, limit })
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const data = await callApi('/api/firm', { firm, limit }, resultDiv);
         if (!data.results || data.results.length === 0) {
           resultDiv.innerHTML = '<div class="empty-state">✅ No recalls found for this firm.</div>';
           return;
@@ -1098,7 +1316,7 @@
         resultDiv.innerHTML = html;
         applyTableFilter(resultDiv);
       } catch (err) {
-        resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
+        showError(resultDiv, err);
       }
     }
     async function submitRecent() {
@@ -1106,15 +1324,8 @@
       const limit = parseInt(document.getElementById('recentLimit').value);
       const resultDiv = document.getElementById('recentResult');
       lastData.recent = null;
-      resultDiv.innerHTML = '<div class="spinner"></div>';
       try {
-        const res = await fetch('/api/recent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ days, limit })
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const data = await callApi('/api/recent', { days, limit }, resultDiv);
         if (!data.results || data.results.length === 0) {
           resultDiv.innerHTML = '<div class="empty-state">✅ No recalls in this period.</div>';
           return;
@@ -1132,7 +1343,7 @@
         resultDiv.innerHTML = html;
         applyTableFilter(resultDiv);
       } catch (err) {
-        resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
+        showError(resultDiv, err);
       }
     }
     async function submitReference() {
@@ -1140,15 +1351,8 @@
       const resultDiv = document.getElementById('referenceResult');
       if (!recallNumber) { resultDiv.innerHTML = '<div class="error-box">Please enter a recall number.</div>'; return; }
       lastData.reference = null;
-      resultDiv.innerHTML = '<div class="spinner"></div>';
       try {
-        const res = await fetch('/api/reference', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recall_number: recallNumber })
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const data = await callApi('/api/reference', { recall_number: recallNumber }, resultDiv);
         const rec = (data.results && data.results[0]) || data;
         if (!rec || !rec.recall_number) {
           resultDiv.innerHTML = '<div class="error-box">No recall found for that number.</div>';
@@ -1177,7 +1381,7 @@
         html += '</div>';
         resultDiv.innerHTML = html;
       } catch (err) {
-        resultDiv.innerHTML = `<div class="error-box">Error: ${esc(err.message)}</div>`;
+        showError(resultDiv, err);
       }
     }
     function prefillCheck(drug) {
@@ -1193,6 +1397,79 @@
       document.getElementById('recentDaysVal').textContent = days;
       openModal('recentModal');
     }
+  </script>
+
+  <!-- GOOGLE SIGN-IN (Supabase).
+       Module scope, so the classic script above reaches it through window.sb /
+       window.pubveraAuth. Config comes from /config.json (handleRoot in main.go).
+       When it is missing or incomplete — the state of the current deployment
+       until the environment variables are set — Supabase is never loaded at all
+       and the page runs unauthenticated: no sign-in UI, no Authorization header,
+       everything else unchanged. -->
+  <script type="module">
+    const bar     = document.getElementById('authBar');
+    const emailEl = document.getElementById('authEmail');
+    const inBtn   = document.getElementById('authSignInBtn');
+    const outBtn  = document.getElementById('authSignOutBtn');
+
+    // Installed first so the searches and the 401 error card can always ask, even
+    // if the config fetch or the module import below never completes.
+    window.pubveraAuth = { enabled: false, signIn() {}, signOut() {} };
+
+    async function initAuth() {
+      let cfg;
+      try {
+        const res = await fetch('/config.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        cfg = await res.json();
+      } catch (e) {
+        return; // unauthenticated mode
+      }
+      const url = String((cfg && cfg.supabase_url) || '').trim();
+      const key = String((cfg && cfg.supabase_anon_key) || '').trim();
+      // Either field empty: skip Supabase entirely.
+      if (!url || !key) return;
+
+      // Dynamic import, not a static one: a static import runs before the fetch
+      // above, so an unconfigured page would still pay for the library.
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+      const sb = createClient(url, key);
+      window.sb = sb;
+
+      window.pubveraAuth = {
+        enabled: true,
+        signIn: async () => {
+          const { error } = await sb.auth.signInWithOAuth({
+            provider: 'google',
+            // Back to the origin the user is actually on, so a sign-in started
+            // on recallis.pubvera.com returns to recallis.pubvera.com.
+            options: { redirectTo: window.location.origin }
+          });
+          if (error) alert('Sign-in failed: ' + error.message);
+        },
+        signOut: () => sb.auth.signOut()
+      };
+
+      inBtn.onclick  = () => window.pubveraAuth.signIn();
+      outBtn.onclick = () => window.pubveraAuth.signOut();
+
+      function render(session) {
+        const signedIn = !!session;
+        emailEl.textContent = signedIn ? (session.user && session.user.email || 'Signed in') : '';
+        emailEl.hidden = !signedIn;
+        outBtn.hidden  = !signedIn;
+        inBtn.hidden   = signedIn;
+        bar.hidden = false; // only now: an empty bar must never flash first
+      }
+
+      const { data: { session } } = await sb.auth.getSession();
+      render(session);
+      // Fires on sign-in, sign-out and background token refresh, including the
+      // redirect back from Google, which lands here as a new session.
+      sb.auth.onAuthStateChange((_event, s) => render(s));
+    }
+
+    initAuth().catch(() => { /* stay in unauthenticated mode */ });
   </script>
 </body>
 </html>
