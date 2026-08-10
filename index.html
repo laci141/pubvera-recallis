@@ -991,27 +991,25 @@
 
     // ── BibTeX: recalls are agency notices, not articles → @misc keyed by recall number ──
     function bibEsc(v) { return String(v == null ? "" : v).replace(/[{}\\]/g, "").trim(); }
-    function bibShort(v, n) {
-      const s = String(v == null ? "" : v).trim();
-      return s.length > n ? s.slice(0, n - 3).trimEnd() + "..." : s;
-    }
 
     function toBibTeX(rows) {
       const out = [];
       rows.forEach((r, i) => {
         const num = String(r["Recall number"] || "").trim();
         const key = num ? num.replace(/[^A-Za-z0-9\-]/g, "") : "recall_" + (i + 1);
-        const year = (String(r["Report date"] || r["Initiation date"] || "").match(/^(\d{4})/) || [])[1] || new Date().getFullYear();
+        // No usable date → omit the year field rather than inventing the export year.
+        const year = (String(r["Report date"] || r["Initiation date"] || "").match(/^(\d{4})/) || [])[1] || "";
         const firm = bibEsc(r["Firm"] || "Unknown firm");
-        const product = bibEsc(bibShort(r["Product"], 120)) || "Drug product";
-        const reason = bibEsc(bibShort(r["Reason"], 160));
+        const product = bibEsc(r["Product"]) || "Drug product";
+        const reason = bibEsc(r["Reason"]);
         const cls = bibEsc(r["Classification"] || "");
         const lines = ["@misc{" + key + ","];
         lines.push("  title        = {Recall: " + product + "},");
         lines.push("  author       = {{" + firm + "}},");
         lines.push("  howpublished = {FDA Enforcement Report, recall number " + (num || "N/A") + "},");
-        lines.push("  year         = {" + year + "},");
-        if (num) lines.push('  url          = {https://api.fda.gov/drug/enforcement.json?search=recall_number:"' + num + '"},');
+        if (year) lines.push("  year         = {" + year + "},");
+        // No per-recall human-readable FDA page is constructible, so cite the API query with the quotes percent-encoded.
+        if (num) lines.push("  url          = {https://api.fda.gov/drug/enforcement.json?search=" + encodeURIComponent('recall_number:"' + num + '"') + "},");
         lines.push("  note         = {" + (cls ? cls + " — " : "") + (reason || "Exported from Recallis; data via openFDA") + "}");
         lines.push("}");
         out.push(lines.join("\n"));
