@@ -1092,6 +1092,18 @@
       URL.revokeObjectURL(url);
     }
 
+    // The row count is the page; lastTotal is the registry. Measured: check "dye"
+    // shows 25 rows against a real total of 38, "alcohol" 50 against 453. Showing
+    // only the page count told the reader they had seen everything there is.
+    function recallCount(key, shown) {
+      const plural = (n, word) => n === 1 ? (n + " " + word) : (n.toLocaleString("en-US") + " " + word + "s");
+      const t = lastTotal[key];
+      // "25 recalls of 38 recalls" says the noun twice; the number carries it.
+      return t == null || t === shown
+        ? plural(shown, "recall")
+        : shown.toLocaleString("en-US") + " of " + plural(t, "recall") + " matched";
+    }
+
     // ── Result header: count + quick filter + Class I toggle + download buttons ──
     function metaRow(text, key, filename, opts) {
       opts = opts || {};
@@ -1365,7 +1377,7 @@
           lastNegated.check = { word: drug, negated: negated, shown: data.results.length };
         }
         widen('checkContent');
-        let html = metaRow(data.results.length + ' recalls', 'check', 'recallis-recalls.json');
+        let html = metaRow(recallCount('check', data.results.length), 'check', 'recallis-recalls.json');
         if (lastNegated.check) html += negatedNotice(drug, negated, data.results.length);
         html += tableHead(['Recall #', 'Date', 'Class', 'Product', 'Reason']);
         data.results.forEach((r, i) => {
@@ -1396,7 +1408,7 @@
         lastTotal.firm = metaTotal(data);
         lastQuery.firm = firm;
         widen('firmContent');
-        let html = metaRow(data.results.length + ' recalls', 'firm', 'recallis-firm-recalls.json');
+        let html = metaRow(recallCount('firm', data.results.length), 'firm', 'recallis-firm-recalls.json');
         html += tableHead(['Recall #', 'Date', 'Class', 'Product', 'Reason']);
         data.results.forEach((r, i) => {
           html += '<tr data-idx="' + i + '">' + rowCommon(r, null) + '</tr>';
@@ -1425,7 +1437,7 @@
         lastTotal.recent = metaTotal(data);
         lastQuery.recent = 'last ' + days + ' days';
         widen('recentContent');
-        let html = metaRow(data.results.length + ' recalls', 'recent', 'recallis-recent-recalls.json');
+        let html = metaRow(recallCount('recent', data.results.length), 'recent', 'recallis-recent-recalls.json');
         html += tableHead(['Recall #', 'Date', 'Class', 'Product', 'Reason']);
         data.results.forEach((r, i) => {
           html += '<tr data-idx="' + i + '">' + rowCommon(r, null) + '</tr>';
