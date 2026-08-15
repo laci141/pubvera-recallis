@@ -820,6 +820,20 @@
     // Query text per module, captured at search time so exports can cite it.
     const lastQuery = { check: '', firm: '', recent: '', reference: '' };
 
+    // ── FIX 1: the real result total, straight from the CLI response ──
+    // The registry only ever holds one page. Measured live: check "aspirin" shows
+    // 50 rows against meta.results.total 59, "acetaminophen" 50 against 240,
+    // "alcohol" 50 against 453 — so an export reporting the row count as the total
+    // understates "alcohol" by 403. Null when the response carries no meta: a
+    // reader cannot tell an invented number from a measured one, so a missing
+    // total stays missing rather than falling back to the row count.
+    const lastTotal = { check: null, firm: null, recent: null, reference: null };
+
+    function metaTotal(data) {
+      const t = data && data.meta && data.meta.results && data.meta.results.total;
+      return (typeof t === 'number' && isFinite(t)) ? t : null;
+    }
+
     // Live view registry: every module that filters or sorts its table registers a
     // getter returning the rows exactly as the user currently sees them, plus the
     // filters that produced them. Without this the exports silently ignore the
@@ -873,9 +887,23 @@
       const parts = ["Recallis export"];
       if (ANALYSIS_LABEL[key]) parts.push(ANALYSIS_LABEL[key]);
       if (lastQuery[key]) parts.push('query: "' + lastQuery[key] + '"');
-      parts.push(total && total !== shown ? ("showing " + shown + " of " + total + " rows") : (shown + " rows"));
+      // Two different numbers, and the file needs both: how much of the loaded
+      // page survived the quick filter, and how many recalls the registry holds
+      // in total. Measured: check "alcohol" loads 50 rows against a real total of
+      // 453, so the page count alone understates by 403. Same shape the other
+      // Pubvera apps use — rows loaded, then the registry total in parentheses.
+      // The reference module always returns exactly one record, so the singular
+      // case is not a rare edge — it is every single lookup.
+      const plural = (n, word) => n === 1 ? (n + " " + word) : (n.toLocaleString("en-US") + " " + word + "s");
+      const loaded = total && total !== shown ? ("showing " + shown + " of " + total + " rows loaded") : (plural(shown, "row") + " loaded");
+      const regTotal = lastTotal[key];
+      parts.push(regTotal == null ? loaded : (loaded + " (" + plural(regTotal, "recall") + " matched in total)"));
       const sc = exportRows(key).scope;
       if (sc) parts.push(sc);
+      // The file states the fact; the explanation of why openFDA returns these
+      // rows stays on screen.
+      const neg = lastNegated[key];
+      if (neg) parts.push(neg.negated + " of " + neg.shown + " rows are " + neg.word + "-free products");
       parts.push("source: openFDA drug enforcement API");
       parts.push(new Date().toISOString().slice(0, 10));
       return parts.join(" · ");
@@ -1045,7 +1073,8 @@
           query: lastQuery[key] || "",
           filters: ex.scope,
           rows_exported: ex.rows.length,
-          rows_total: (rowsFromLastData(key) || []).length,
+          rows_total: lastTotal[key],
+          rows_total_unit: lastTotal[key] == null ? null : "recalls",
           source: "openFDA drug enforcement API",
           exported_at: new Date().toISOString()
         },
@@ -1253,12 +1282,75 @@
       el.innerHTML = errorHTML(err);
     }
 
+    // ══════════ FIX 2: negated matches (check module only) ══════════
+    // openFDA matches the query word anywhere in product_description, negations
+    // included, so "aspirin" returns acetaminophen products whose names advertise
+    // the ABSENCE of aspirin. Measured across 20 query words, counting rows where
+    // EVERY occurrence of the word is negated: dye 38 of 38 (100%), gluten 10 of
+    // 12 (83%), sugar 10 of 50 (20%), aspirin 9 of 50 (18%), alcohol 2 of 50 (4%),
+    // ibuprofen 1 of 50 (2%), lactose 1 of 17 (6%), the other 13 words 0. Checked
+    // by hand: every aspirin row has the word exactly once and always negated —
+    // Non Aspirin, Non-aspirin, Non-Aspirin, UN-ASPIRIN — and all 38 dye rows are
+    // dye-free products, not one a false positive.
+    //
+    // These rows are neither dropped nor demoted, for two measured reasons: for
+    // "dye" every row is negated, so filtering empties the table; and the intent
+    // is not recoverable from the query — "gluten-free" is a category someone may
+    // be searching for on purpose, while nobody searching aspirin recalls wants
+    // the aspirin-free ones.
+    const NEG_PREFIX = /(?:\b(?:non|un|no|without)|\bfree\s+of)[\s\-]*$/i;
+    const NEG_SUFFIX = /^[\s\-]*free\b/i;
+
+    // True only when the word occurs and every occurrence sits inside a negation;
+    // one bare occurrence makes the row a real match.
+    function isNegatedRow(text, word) {
+      const s = String(text == null ? '' : text);
+      const w = String(word == null ? '' : word).trim();
+      if (!w) return false;
+      const re = new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+      let m, seen = false;
+      while ((m = re.exec(s)) !== null) {
+        seen = true;
+        const before = s.slice(0, m.index);
+        const after = s.slice(m.index + m[0].length);
+        if (!NEG_PREFIX.test(before) && !NEG_SUFFIX.test(after)) return false;
+        if (m.index === re.lastIndex) re.lastIndex++;
+      }
+      return seen;
+    }
+
+    function countNegatedRows(results, word) {
+      let n = 0;
+      (results || []).forEach(r => { if (isNegatedRow(r && r.product_description, word)) n++; });
+      return n;
+    }
+
+    // Measured, not chosen: at 10% the sentence fires for dye, gluten, sugar and
+    // aspirin; 5% would add lactose on a single row of 17; 20% would drop aspirin
+    // at 9 of 50.
+    const NEGATED_NOTICE_RATIO = 0.10;
+
+    // Kept per module so the export header can restate the fact; the check module
+    // is the only one that takes a substance word — firm, recent and reference do
+    // not, so nothing else can populate this.
+    const lastNegated = { check: null };
+
+    function negatedNotice(word, negated, shown) {
+      return '<p style="font-size:0.78rem;color:#fcd34d;margin-top:10px;">⚠️ ' +
+        negated + ' of the ' + shown + ' rows shown name themselves as ' + esc(word) +
+        '-free products. openFDA matches the word anywhere in the product description, ' +
+        'including inside a negation, so they are listed here as well — nothing has been ' +
+        'filtered out or reordered.</p>';
+    }
+
     async function submitCheck() {
       const drug = document.getElementById('checkDrug').value.trim();
       const cls = document.getElementById('checkClass').value;
       const resultDiv = document.getElementById('checkResult');
       if (!drug) { resultDiv.innerHTML = '<div class="error-box">Please enter a drug name.</div>'; return; }
       lastData.check = null;
+      lastTotal.check = null;
+      lastNegated.check = null;
       try {
         const data = await callApi('/api/check', { drug, class: cls || undefined }, resultDiv);
         if (!data.results || data.results.length === 0) {
@@ -1266,9 +1358,15 @@
           return;
         }
         lastData.check = data.results.map(mapRecall);
+        lastTotal.check = metaTotal(data);
         lastQuery.check = drug + (cls ? ' (Class ' + cls + ')' : '');
+        const negated = countNegatedRows(data.results, drug);
+        if (negated / data.results.length >= NEGATED_NOTICE_RATIO) {
+          lastNegated.check = { word: drug, negated: negated, shown: data.results.length };
+        }
         widen('checkContent');
         let html = metaRow(data.results.length + ' recalls', 'check', 'recallis-recalls.json');
+        if (lastNegated.check) html += negatedNotice(drug, negated, data.results.length);
         html += tableHead(['Recall #', 'Date', 'Class', 'Product', 'Reason']);
         data.results.forEach((r, i) => {
           html += '<tr data-idx="' + i + '">' + rowCommon(r, drug) + '</tr>';
@@ -1287,6 +1385,7 @@
       const resultDiv = document.getElementById('firmResult');
       if (!firm) { resultDiv.innerHTML = '<div class="error-box">Please enter a firm name.</div>'; return; }
       lastData.firm = null;
+      lastTotal.firm = null;
       try {
         const data = await callApi('/api/firm', { firm, limit }, resultDiv);
         if (!data.results || data.results.length === 0) {
@@ -1294,6 +1393,7 @@
           return;
         }
         lastData.firm = data.results.map(mapRecall);
+        lastTotal.firm = metaTotal(data);
         lastQuery.firm = firm;
         widen('firmContent');
         let html = metaRow(data.results.length + ' recalls', 'firm', 'recallis-firm-recalls.json');
@@ -1314,6 +1414,7 @@
       const limit = parseInt(document.getElementById('recentLimit').value);
       const resultDiv = document.getElementById('recentResult');
       lastData.recent = null;
+      lastTotal.recent = null;
       try {
         const data = await callApi('/api/recent', { days, limit }, resultDiv);
         if (!data.results || data.results.length === 0) {
@@ -1321,6 +1422,7 @@
           return;
         }
         lastData.recent = data.results.map(mapRecall);
+        lastTotal.recent = metaTotal(data);
         lastQuery.recent = 'last ' + days + ' days';
         widen('recentContent');
         let html = metaRow(data.results.length + ' recalls', 'recent', 'recallis-recent-recalls.json');
@@ -1341,6 +1443,7 @@
       const resultDiv = document.getElementById('referenceResult');
       if (!recallNumber) { resultDiv.innerHTML = '<div class="error-box">Please enter a recall number.</div>'; return; }
       lastData.reference = null;
+      lastTotal.reference = null;
       try {
         const data = await callApi('/api/reference', { recall_number: recallNumber }, resultDiv);
         const rec = (data.results && data.results[0]) || data;
@@ -1349,6 +1452,9 @@
           return;
         }
         lastData.reference = [mapRecall(rec)];
+        // A single-recall lookup: meta.results.total comes back as 1, which is a
+        // true statement about the query rather than a page size.
+        lastTotal.reference = metaTotal(data);
         lastQuery.reference = recallNumber;
         let lots = '';
         if (rec.code_info) {
