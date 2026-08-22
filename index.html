@@ -1010,12 +1010,19 @@
     }
 
     // ── BibTeX: recalls are agency notices, not articles → @misc keyed by recall number ──
-    function bibEsc(v){
-  return String(v==null?"":v)
-    .replace(/[{}\\]/g,"")
-    .replace(/([&%#_$])/g,"\\$1")
-    .replace(/\^/g,"\\textasciicircum{}")
-    .replace(/~/g,"\\textasciitilde{}")
+   function bibEsc(v) { 
+  return String(v == null ? "" : v)
+    .normalize("NFC")
+    .replace(/[{}\\]/g, "")
+    .replace(/([&%#_$])/g, "\\$1")
+    .replace(/\^/g, "\\textasciicircum{}")
+    .replace(/~/g, "\\textasciitilde{}")
+    .replace(/α/g, "\\ensuremath{\\alpha}")
+    .replace(/β/g, "\\ensuremath{\\beta}")
+    .replace(/γ/g, "\\ensuremath{\\gamma}")
+    .replace(/δ/g, "\\ensuremath{\\delta}")
+    .replace(/μ/g, "\\ensuremath{\\mu}")
+    .replace(/Δ/g, "\\ensuremath{\\Delta}")
     .trim();
 }
 
