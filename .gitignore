@@ -6,3 +6,4 @@ data/
 .DS_Store
 *.exe
 PROMPT.md
+cli-src/
