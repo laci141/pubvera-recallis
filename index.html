@@ -1031,8 +1031,11 @@
       rows.forEach((r, i) => {
         const num = String(r["Recall number"] || "").trim();
         const key = num ? num.replace(/[^A-Za-z0-9\-]/g, "") : "recall_" + (i + 1);
-        // No usable date → omit the year field rather than inventing the export year.
-        const year = (String(r["Report date"] || r["Initiation date"] || "").match(/^(\d{4})/) || [])[1] || "";
+        // The UI shows the initiation date, so cite that; fall back to the report date year only
+        // when the initiation date is missing or unparseable. No usable date → omit the year field
+        // rather than inventing the export year.
+        const initiation = (String(r["Initiation date"] || "").match(/^(\d{4})-(\d{2})-(\d{2})$/) || [])[0] || "";
+        const year = initiation.slice(0, 4) || (String(r["Report date"] || "").match(/^(\d{4})/) || [])[1] || "";
         const firm = bibEsc(r["Firm"] || "Unknown firm");
         const product = bibEsc(r["Product"]) || "Drug product";
         const reason = bibEsc(r["Reason"]);
@@ -1042,6 +1045,8 @@
         lines.push("  author       = {{" + firm + "}},");
         lines.push("  howpublished = {FDA Enforcement Report, recall number " + (num || "N/A") + "},");
         if (year) lines.push("  year         = {" + year + "},");
+        // Full initiation date for biblatex; classic BibTeX ignores an unknown field harmlessly.
+        if (initiation) lines.push("  date         = {" + initiation + "},");
         // No per-recall human-readable FDA page is constructible, so cite the API query with the quotes percent-encoded.
         if (num) lines.push("  url          = {https://api.fda.gov/drug/enforcement.json?search=" + encodeURIComponent('recall_number:"' + num + '"') + "},");
         lines.push("  note         = {" + (cls ? cls + " — " : "") + (reason || "Exported from Recallis; data via openFDA") + "}");
