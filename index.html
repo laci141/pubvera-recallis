@@ -390,6 +390,20 @@
     .badge-orange { background: #7c2d12; color: #fdba74; }
     .badge-yellow { background: #713f12; color: #fcd34d; }
     .badge-gray { background: #374151; color: #d1d5db; }
+    /* Render-only row markers. Small enough to sit beside the recall number
+       without pushing the column, and never written to any export. */
+    .row-flag {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: help;
+    }
+    .row-flag-neg { background: #422006; color: #fcd34d; }
+    .row-flag-qty { background: #3f1d38; color: #f0abfc; }
     .link-btns { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
     .link-btn {
       display: inline-block;
@@ -752,10 +766,11 @@
     function fdaSearchUrl(term) {
       return 'https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts?search_api_fulltext=' + encodeURIComponent(term || '');
     }
-    function recallCell(r) {
+    function recallCell(r, flags) {
       const num = r.recall_number || 'N/A';
-      if (num === 'N/A') return `<td class="nowrap"><code style="background:rgba(220,38,38,0.15);padding:2px 6px;border-radius:4px;">N/A</code></td>`;
-      return `<td class="nowrap"><a class="recall-link" href="${recallSearchUrl(num, r.product_description)}" target="_blank" rel="noopener" title="Open full recall details in a new tab">${esc(num)}</a></td>`;
+      const extra = flags || '';
+      if (num === 'N/A') return `<td class="nowrap"><code style="background:rgba(220,38,38,0.15);padding:2px 6px;border-radius:4px;">N/A</code>${extra}</td>`;
+      return `<td class="nowrap"><a class="recall-link" href="${recallSearchUrl(num, r.product_description)}" target="_blank" rel="noopener" title="Open full recall details in a new tab">${esc(num)}</a>${extra}</td>`;
     }
     function clipCell(text, highlightTerm) {
       const full = text || 'N/A';
@@ -770,8 +785,48 @@
       return '<div class="table-wrap"><table class="result-table"><tr>' +
         cols.map(c => `<th>${c}<span class="sort-ind"> ⇅</span></th>`).join('') + '</tr>';
     }
+    // ══════════ Render-only row markers ══════════
+    // Two facts that are present in the data but invisible to a reader scanning
+    // long product descriptions. Both are display-only: nothing here reaches the
+    // CSV/XLSX/BibTeX/JSON exporters, and no row is filtered, moved or rewritten.
+
+    // A quantity is malformed when, after splitting on commas, any group other
+    // than the first is not exactly three digits — e.g. "1,1401,641 packets",
+    // where the intended value could be 11,401,641 or 1,401,641. We only mark it;
+    // the string itself is never touched.
+    function isMalformedQuantity(text) {
+      const s = String(text == null ? '' : text).trim();
+      if (!s || s.indexOf(',') === -1) return false;
+      const digits = s.match(/[\d,]*\d[\d,]*/g) || [];
+      return digits.some(run => {
+        const groups = run.split(',');
+        if (groups.length < 2) return false;
+        return groups.slice(1).some(g => !/^\d{3}$/.test(g));
+      });
+    }
+
+    // The badge markup. Rendered inside the recall-number cell so no column is
+    // added and the Product text — and its column sort — stay exactly as they were.
+    function rowFlags(r, word) {
+      r = r || {};
+      let out = '';
+      if (isNegatedRow(r.product_description, word)) {
+        out += '<span class="row-flag row-flag-neg" title="This product names itself as ' +
+          esc(String(word || '').trim()) + '-free. openFDA matched the search word inside a ' +
+          'negation, so the row is listed here even though the product does not contain the ' +
+          'substance. Nothing has been filtered out or reordered.">not the drug</span>';
+      }
+      if (isMalformedQuantity(r.product_quantity)) {
+        out += '<span class="row-flag row-flag-qty" title="Quantity as supplied by the FDA: ' +
+          esc(r.product_quantity) + '. Its thousands separators are grouped incorrectly, so the ' +
+          'intended number cannot be determined from the source. The value is reproduced exactly ' +
+          'as supplied and has not been corrected or guessed.">quantity ?</span>';
+      }
+      return out;
+    }
+
     function rowCommon(r, highlightTerm) {
-      return recallCell(r) +
+      return recallCell(r, rowFlags(r, highlightTerm)) +
              `<td class="nowrap">${fmtDate(r.recall_initiation_date)}</td>` +
              `<td class="nowrap">${getClassBadge(r.classification)}</td>` +
              clipCell(r.product_description, highlightTerm) +
