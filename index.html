@@ -1108,6 +1108,16 @@
       if (!lastData[key]) { alert("Run a search first."); return; }
       const ex = exportRows(key);
       if (!ex.rows.length) { alert(EMPTY_EXPORT_MSG); return; }
+      // Stated whenever the count exists, zero included: the JSON consumer is a
+      // machine and cannot see the banner the browser shows.
+      const neg = lastNegatedCount[key];
+      const negFields = neg ? {
+        negated_rows: neg.negated,
+        negated_rows_note: neg.negated + " of the " + neg.shown + " rows shown name themselves as " +
+          neg.word + "-free products. openFDA matches the word anywhere in the product " +
+          "description, including inside a negation, so they are listed here as well — " +
+          "nothing has been filtered out or reordered."
+      } : {};
       const payload = {
         export: {
           app: "Recallis",
@@ -1118,6 +1128,7 @@
           rows_total: lastTotal[key],
           rows_total_unit: lastTotal[key] == null ? null : "recalls",
           source: "openFDA drug enforcement API",
+          ...negFields,
           exported_at: new Date().toISOString()
         },
         rows: ex.rows
@@ -1389,6 +1400,12 @@
     // not, so nothing else can populate this.
     const lastNegated = { check: null };
 
+    // The banner and the CSV/BibTeX caption only speak up above the ratio, but the
+    // JSON envelope states the count every time it is known — zero included, since
+    // "none of these rows are negations" is a fact a machine consumer cannot infer.
+    // Same number as lastNegated, just not gated on the ratio.
+    const lastNegatedCount = { check: null };
+
     function negatedNotice(word, negated, shown) {
       return '<p style="font-size:0.78rem;color:#fcd34d;margin-top:10px;">⚠️ ' +
         negated + ' of the ' + shown + ' rows shown name themselves as ' + esc(word) +
@@ -1405,6 +1422,7 @@
       lastData.check = null;
       lastTotal.check = null;
       lastNegated.check = null;
+      lastNegatedCount.check = null;
       try {
         const data = await callApi('/api/check', { drug, class: cls || undefined }, resultDiv);
         if (!data.results || data.results.length === 0) {
@@ -1415,6 +1433,7 @@
         lastTotal.check = metaTotal(data);
         lastQuery.check = drug + (cls ? ' (Class ' + cls + ')' : '');
         const negated = countNegatedRows(data.results, drug);
+        lastNegatedCount.check = { word: drug, negated: negated, shown: data.results.length };
         if (negated / data.results.length >= NEGATED_NOTICE_RATIO) {
           lastNegated.check = { word: drug, negated: negated, shown: data.results.length };
         }
