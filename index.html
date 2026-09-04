@@ -1001,7 +1001,30 @@
           if (f) ws[addr].s = { alignment: centerH, font: { bold: true, color: { rgb: f.font } }, fill: { fgColor: { rgb: f.fg } } };
         }
       }
+      // Date columns must be real dates, otherwise Excel sorts them as text and
+      // offers no date filter. Only a complete ISO day is converted; anything
+      // else (empty, "Unknown", a partial date) stays the original string.
+      const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+      ["Initiation date", "Report date"].forEach(name => {
+        const C = cols.indexOf(name);
+        if (C < 0) return;
+        for (let R = 2; R <= range.e.r; R++) {
+          const addr = XLSX.utils.encode_cell({ r: R, c: C });
+          const cell = ws[addr];
+          if (!cell || typeof cell.v !== "string" || !ISO_DAY.test(cell.v)) continue;
+          const p = cell.v.split("-").map(Number);
+          // Whole-day serial computed in UTC: a local-time Date drifts by the
+          // zone offset and leaves a fraction that defeats Excel's date filter.
+          const serial = (Date.UTC(p[0], p[1] - 1, p[2]) - Date.UTC(1899, 11, 30)) / 86400000;
+          cell.t = "n";
+          cell.v = serial;
+          cell.z = "yyyy-mm-dd";
+        }
+      });
+
       ws["!cols"] = colInfo.map(ci => ({ wch: ci.wch }));
+      // Filter the header row and every data row, at the sheet's real width.
+      ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 1, c: 0 }, e: { r: range.e.r, c: range.e.c } }) };
       ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: cols.length - 1 } }];
       ws["!freeze"] = { xSplit: 0, ySplit: 2 };
       const wb = XLSX.utils.book_new();
