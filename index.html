@@ -1177,10 +1177,7 @@
       const neg = lastNegatedCount[key];
       const negFields = neg ? {
         negated_rows: neg.negated,
-        negated_rows_note: neg.negated + " of the " + neg.shown + " rows shown name themselves as " +
-          neg.word + "-free products. openFDA matches the word anywhere in the product " +
-          "description, including inside a negation, so they are listed here as well — " +
-          "nothing has been filtered out or reordered."
+        negated_rows_note: negatedNoticeText(neg.word, neg.negated, neg.shown)
       } : {};
       const payload = {
         export: {
@@ -1475,12 +1472,19 @@
     // there is nothing for them to populate here.
     const lastNegatedCount = { check: null };
 
-    function negatedNotice(word, negated, shown) {
-      return '<p style="font-size:0.78rem;color:#fcd34d;margin-top:10px;">⚠️ ' +
-        negated + ' of the ' + shown + ' rows shown name themselves as ' + esc(word) +
+    // Single source of the negated-row wording. Plain text, no escaping: the HTML
+    // path escapes the drug name at the point of insertion, the JSON path must
+    // keep it literal.
+    function negatedNoticeText(word, negated, shown) {
+      return negated + ' of the ' + shown + ' rows shown name themselves as ' + word +
         '-free products. openFDA matches the word anywhere in the product description, ' +
         'including inside a negation, so they are listed here as well — nothing has been ' +
-        'filtered out or reordered.</p>';
+        'filtered out or reordered.';
+    }
+
+    function negatedNotice(word, negated, shown) {
+      return '<p style="font-size:0.78rem;color:#fcd34d;margin-top:10px;">⚠️ ' +
+        negatedNoticeText(esc(word), negated, shown) + '</p>';
     }
 
     async function submitCheck() {
