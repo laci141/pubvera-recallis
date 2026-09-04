@@ -401,6 +401,10 @@
       font-weight: 700;
       white-space: nowrap;
       cursor: help;
+      /* Render-only marker: excluded from a table selection so a copied recall
+         number never carries the badge label with it. */
+      -webkit-user-select: none;
+      user-select: none;
     }
     .row-flag-neg { background: #422006; color: #fcd34d; }
     .row-flag-qty { background: #3f1d38; color: #f0abfc; }
@@ -1464,6 +1468,11 @@
     // JSON envelope states the count every time it is known — zero included, since
     // "none of these rows are negations" is a fact a machine consumer cannot infer.
     // Same number as lastNegated, just not gated on the ratio.
+    // Check-only by design, not by oversight: negation is only defined relative to
+    // a substance word, and check is the only module that takes one. Firm, recent
+    // and reference search a company name, a date window and a recall number, and
+    // call rowCommon(r, null) — there is no word for isNegatedRow() to negate, so
+    // there is nothing for them to populate here.
     const lastNegatedCount = { check: null };
 
     function negatedNotice(word, negated, shown) {
