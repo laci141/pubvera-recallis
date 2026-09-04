@@ -1026,7 +1026,12 @@
       // Filter the header row and every data row, at the sheet's real width.
       ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 1, c: 0 }, e: { r: range.e.r, c: range.e.c } }) };
       ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: cols.length - 1 } }];
-      ws["!freeze"] = { xSplit: 0, ySplit: 2 };
+      // No freeze pane: xlsx-js-style 1.2.0 cannot write pane XML. Measured —
+      // !freeze (object and string), !views with a frozen state and !panes all
+      // produce sheet1.xml with zero <pane> tags, and the bundle mentions "pane"
+      // only in an XLML reader switch whose "freezepanes" case is empty. Freezing
+      // would mean unzipping the written file and injecting <pane> into
+      // xl/worksheets/sheet1.xml with a zip library.
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Recallis");
       XLSX.writeFile(wb, filename);
