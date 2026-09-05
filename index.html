@@ -408,6 +408,33 @@
     }
     .row-flag-neg { background: #422006; color: #fcd34d; }
     .row-flag-qty { background: #3f1d38; color: #f0abfc; }
+    /* A touch device never shows a title tooltip, so tapping a badge opens the
+       same sentence here instead. Parked on <body> and positioned fixed, for
+       three reasons: the table-wrap cannot clip it, no column is widened on a
+       narrow screen, and it stays outside the table so a table selection still
+       cannot pick up badge text. Above the modal (z-index 1000) because every
+       result table lives inside one. Same glass recipe as .modal-content —
+       no new colour introduced. It always renders over the card or the modal,
+       both of which sit on the body gradient, so there is real colour behind
+       it for the blur to work on. */
+    .flag-pop {
+      display: none;
+      position: fixed;
+      z-index: 1100;
+      max-width: 300px;
+      padding: 12px 14px;
+      background: rgba(35, 28, 40, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-top: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      backdrop-filter: blur(15px) saturate(160%);
+      -webkit-backdrop-filter: blur(15px) saturate(160%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.45);
+      color: #e8eef7;
+      font-size: 0.78rem;
+      line-height: 1.6;
+    }
+    .flag-pop.open { display: block; }
     .link-btns { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
     .link-btn {
       display: inline-block;
@@ -508,6 +535,10 @@
       .card { backdrop-filter: blur(15px) saturate(160%); -webkit-backdrop-filter: blur(15px) saturate(160%); }
       .modal-content { backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); padding: 20px; }
       .disclaimer-panel { backdrop-filter: blur(11px) saturate(160%); -webkit-backdrop-filter: blur(11px) saturate(160%); padding: 14px 16px; margin-left: 12px; margin-right: 12px; }
+      /* 15px of blur measurably costs scrolling on a phone, and this popover is
+         the one that opens mid-scroll. 11px keeps the glass and gives the frame
+         back. */
+      .flag-pop { backdrop-filter: blur(11px) saturate(160%); -webkit-backdrop-filter: blur(11px) saturate(160%); max-width: calc(100vw - 20px); }
       .qfilter { width: 140px; }
       .hero h1 { font-size: 1.6rem; }
       .hero { padding: 14px 14px 24px; }
@@ -725,6 +756,12 @@
       div.textContent = str == null ? '' : str;
       return div.innerHTML;
     }
+    // esc() is fine for element text but leaves the double quote alone, which
+    // would cut an attribute value short. The badge titles carry FDA-supplied
+    // text and the popover reads them back, so they go through this instead.
+    function escAttr(str) {
+      return esc(str).replace(/"/g, '&quot;');
+    }
     function openModal(id) {
       document.getElementById(id).classList.add('open');
     }
@@ -741,6 +778,9 @@
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        // The popover opens on top of a modal, so the first Escape closes it and
+        // leaves the results where they are.
+        if (closeFlagPopover()) return;
         ['checkModal', 'firmModal', 'recentModal', 'referenceModal'].forEach(closeModal);
       }
     });
@@ -809,22 +849,51 @@
       });
     }
 
+    // Two very different defects reach the same badge, and they do not cost the
+    // reader the same. "29, 004 bottles" is a well-formed grouping with stray
+    // whitespace in the separator — every group still holds three digits.
+    // "69,6396 bottles" has a four-digit group: 696,396 and 69,640 are both
+    // readable from it, a factor of ten apart. Squeeze the whitespace out of the
+    // separators and re-run the original check: if that repairs the grouping the
+    // defect was whitespace, otherwise a group has the wrong number of digits.
+    // This picks the sentence only — isMalformedQuantity() above still decides,
+    // unchanged, which rows get the badge at all.
+    function isWhitespaceOnlyQuantityDefect(text) {
+      return !isMalformedQuantity(String(text == null ? '' : text).replace(/\s*,\s*/g, ','));
+    }
+
+    // Single source of the "quantity ?" wording, so the title attribute and the
+    // tap popover cannot drift apart. Plain text; the caller escapes it. Neither
+    // branch offers a corrected reading: the whitespace case tells us the digit
+    // grouping is well formed, not what the number is.
+    function malformedQuantityText(quantity) {
+      const defect = isWhitespaceOnlyQuantityDefect(quantity)
+        ? 'Its thousands separators contain stray whitespace; the digit groups themselves ' +
+          'are well formed, so the digits are intact.'
+        : 'One of its digit groups holds the wrong number of digits, so the intended number ' +
+          'cannot be determined from the source.';
+      return 'Quantity as supplied by the FDA: ' + String(quantity == null ? '' : quantity) +
+        '. ' + defect + ' The value is reproduced exactly as supplied and has not been ' +
+        'corrected or guessed.';
+    }
+
     // The badge markup. Rendered inside the recall-number cell so no column is
     // added and the Product text — and its column sort — stay exactly as they were.
+    // The explanation lives in the title attribute and nowhere else: the popover
+    // reads it back from there, so there is one string to keep right.
     function rowFlags(r, word) {
       r = r || {};
       let out = '';
       if (isNegatedRow(r.product_description, word)) {
-        out += '<span class="row-flag row-flag-neg" title="This product names itself as ' +
-          esc(String(word || '').trim()) + '-free. openFDA matched the search word inside a ' +
-          'negation, so the row is listed here even though the product does not contain the ' +
-          'substance. Nothing has been filtered out or reordered.">not the drug</span>';
+        out += '<span class="row-flag row-flag-neg" title="' + escAttr(
+          'This product names itself as ' + String(word || '').trim() + '-free. openFDA matched ' +
+          'the search word inside a negation, so the row is listed here even though the product ' +
+          'does not contain the substance. Nothing has been filtered out or reordered.') +
+          '">not the drug</span>';
       }
       if (isMalformedQuantity(r.product_quantity)) {
-        out += '<span class="row-flag row-flag-qty" title="Quantity as supplied by the FDA: ' +
-          esc(r.product_quantity) + '. Its thousands separators are grouped incorrectly, so the ' +
-          'intended number cannot be determined from the source. The value is reproduced exactly ' +
-          'as supplied and has not been corrected or guessed.">quantity ?</span>';
+        out += '<span class="row-flag row-flag-qty" title="' +
+          escAttr(malformedQuantityText(r.product_quantity)) + '">quantity ?</span>';
       }
       return out;
     }
@@ -1226,7 +1295,7 @@
       const bibName = String(filename).replace(/\.json$/i, ".bib");
       const filterCtl = opts.noFilter ? "" :
         '<input class="qfilter" type="text" placeholder="🔍 Filter results…">' +
-        '<button class="qclass" title="Show Class I (most serious) recalls only">Class I</button>';
+        '<button class="qclass" title="Show Class I (most serious) recalls only">Only Class I</button>';
       return '<div class="meta-row"><span class="meta">' + text + '<span class="qcount"></span></span>' +
         '<span class="dl-group">' + filterCtl +
         '<button class="dl" title="BibTeX citations (@misc, keyed by recall number)" onclick="downloadBibTeX(\'' + key + '\',\'' + bibName + '\')">⬇ BibTeX</button>' +
@@ -1235,6 +1304,85 @@
         '<button class="dl" onclick="downloadJSON(\'' + key + '\',\'' + filename + '\')">⬇ JSON</button>' +
         '</span></div>';
     }
+
+    // ══════════ Badge explanation popover ══════════
+    // The row badges explain themselves in a title attribute, which a touch
+    // device never shows, and this app is used on phones. A tap opens the same
+    // sentence here.
+    //
+    // One element for the whole page, created on first use and appended to
+    // <body>. That placement is load-bearing three times over: it keeps the
+    // explanation out of the table, so a table selection still copies a bare
+    // recall number; it escapes .table-wrap's overflow clipping; and it escapes
+    // the backdrop-filter ancestors, which would otherwise become the containing
+    // block for a fixed-position child and anchor it to the card instead of the
+    // viewport.
+    //
+    // The text is read back from the badge's own title, so there is exactly one
+    // copy of each sentence and no second one to keep in sync.
+    let flagPop = null;
+    let flagPopAnchor = null;
+
+    function flagPopElement() {
+      if (!flagPop) {
+        flagPop = document.createElement('div');
+        flagPop.className = 'flag-pop';
+        document.body.appendChild(flagPop);
+      }
+      return flagPop;
+    }
+
+    // Centred under the badge, then clamped into the viewport — a badge near the
+    // right edge moves the popover left rather than widening the page. Flips
+    // above the badge when there is no room below.
+    function placeFlagPopover() {
+      if (!flagPop || !flagPopAnchor) return;
+      // Re-rendered results detach the badge; nothing left to point at.
+      if (!flagPopAnchor.isConnected) { closeFlagPopover(); return; }
+      const GAP = 8, EDGE = 10;
+      const a = flagPopAnchor.getBoundingClientRect();
+      if (a.bottom < 0 || a.top > window.innerHeight) { closeFlagPopover(); return; }
+      const p = flagPop.getBoundingClientRect();
+      let left = a.left + a.width / 2 - p.width / 2;
+      left = Math.max(EDGE, Math.min(left, window.innerWidth - p.width - EDGE));
+      let top = a.bottom + GAP;
+      if (top + p.height > window.innerHeight - EDGE) {
+        const above = a.top - GAP - p.height;
+        top = above >= EDGE ? above : Math.max(EDGE, window.innerHeight - p.height - EDGE);
+      }
+      flagPop.style.left = Math.round(left) + 'px';
+      flagPop.style.top = Math.round(top) + 'px';
+    }
+
+    // Returns whether it actually closed something, so Escape can spend itself on
+    // the popover and leave the modal open.
+    function closeFlagPopover() {
+      flagPopAnchor = null;
+      if (!flagPop || !flagPop.classList.contains('open')) return false;
+      flagPop.classList.remove('open');
+      return true;
+    }
+
+    function toggleFlagPopover(flag) {
+      const wasOpen = flagPopAnchor === flag;
+      closeFlagPopover();
+      if (wasOpen) return;
+      const pop = flagPopElement();
+      pop.textContent = flag.getAttribute('title') || '';
+      flagPopAnchor = flag;
+      // Shown at a throwaway position first: it has to be laid out before its
+      // wrapped width can be measured, and the move happens in the same frame.
+      pop.style.left = '0px';
+      pop.style.top = '0px';
+      pop.classList.add('open');
+      placeFlagPopover();
+    }
+
+    // Follow the badge rather than close on it: a tap on a phone often nudges the
+    // page, and a popover that vanishes on that nudge never gets read. Capturing,
+    // so scrolling inside .table-wrap or .modal-content counts too.
+    window.addEventListener('scroll', placeFlagPopover, true);
+    window.addEventListener('resize', placeFlagPopover);
 
     // ══════════ Quick filter + sortable columns ══════════
     function resultBox(el) {
@@ -1292,9 +1440,17 @@
       if (e.target.classList && e.target.classList.contains('qfilter')) applyTableFilter(resultBox(e.target));
     });
     document.addEventListener('click', (e) => {
-      const th = e.target.closest && e.target.closest('.result-table th');
+      if (!e.target.closest) return;
+      // The badge is a sibling of the recall link, not a child of it, so the link
+      // is never reached; preventDefault only guards against that changing.
+      const flag = e.target.closest('.row-flag');
+      if (flag) { e.preventDefault(); toggleFlagPopover(flag); return; }
+      // Anything else outside the popover dismisses it, including a click on
+      // another badge's row, a sort header or the filter box.
+      if (!e.target.closest('.flag-pop')) closeFlagPopover();
+      const th = e.target.closest('.result-table th');
       if (th) { sortTable(th); return; }
-      const toggle = e.target.closest && e.target.closest('.qclass');
+      const toggle = e.target.closest('.qclass');
       if (toggle) { toggle.classList.toggle('on'); applyTableFilter(resultBox(toggle)); }
     });
     // ══════════ Fetch plumbing (auth header + error mapping) ══════════
