@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// cliRunTimeout a gyerekfolyamat felső határideje. Eddig SEMMILYEN nem volt:
-// egy beragadt CLI a folyamat végéig futott.
+// cliRunTimeout is the upper bound on a child process run. There was NO limit
+// at all before this: a stuck CLI ran until the parent process exited.
 const cliRunTimeout = 120 * time.Second
 
 func main() {
