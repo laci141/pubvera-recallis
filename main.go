@@ -17,6 +17,30 @@ import (
 // at all before this: a stuck CLI ran until the parent process exited.
 const cliRunTimeout = 120 * time.Second
 
+// Server-side timeouts. ReadHeaderTimeout was the only one set, which left the
+// request BODY with no deadline at all: a size limit is not a time limit, and a
+// client that sends its body one byte per minute holds a handler goroutine for
+// as long as it likes. Caddy fronts this app in production and sets no request
+// timeout of its own, so this is the only place the limit exists.
+//
+// WriteTimeout is the one that must not be guessed. It covers the whole
+// response, and a CLI run is allowed cliRunTimeout to produce it, so anything
+// at or below cliRunTimeout would cut off legitimate slow lookups rather than
+// attacks — and only the slowest ones, intermittently, which is far harder to
+// diagnose than the exposure being closed. It is derived from cliRunTimeout so
+// that a change to the CLI budget carries here instead of silently leaving this
+// too short.
+const (
+	srvReadHeaderTimeout = 10 * time.Second
+	// The body is a small JSON object. Thirty seconds is far more than a real
+	// client needs and far less than a slow-loris attacker wants.
+	srvReadTimeout = 30 * time.Second
+	// The full CLI budget plus room to write the response.
+	srvWriteTimeout = cliRunTimeout + 30*time.Second
+	// Keep-alive connections that go quiet are released rather than held.
+	srvIdleTimeout = 120 * time.Second
+)
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -34,7 +58,10 @@ func main() {
 	srv := &http.Server{
 		Addr:              "0.0.0.0:" + port,
 		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
+		ReadHeaderTimeout: srvReadHeaderTimeout,
+		ReadTimeout:       srvReadTimeout,
+		WriteTimeout:      srvWriteTimeout,
+		IdleTimeout:       srvIdleTimeout,
 	}
 
 	log.Printf("recallis listening on 0.0.0.0:%s (CLI=%s, timeout=%s, slots=%d)",
