@@ -209,6 +209,32 @@ type checkRequest struct {
 	Class string `json:"class,omitempty"`
 }
 
+// cliClassArg translates the recall class as the PAGE names it into the value
+// the CLI accepts. The two sides use different vocabularies: the <select> in
+// index.html sends the Roman numerals "I", "II" and "III", while the CLI
+// declares `--class int` (1=Class I, 2=Class II, 3=Class III). Passing the page
+// value straight through made the CLI exit 2 with
+// `invalid argument "I" for "--class" flag`, so every class selection returned
+// 502 and only "Any class" ever worked. This function is the one place the two
+// vocabularies meet, so it accepts both and nothing else.
+//
+// The empty string means "any class" and maps to an empty result: the caller
+// omits the flag entirely. ok is false for anything that is neither.
+func cliClassArg(class string) (string, bool) {
+	switch strings.ToUpper(strings.TrimSpace(class)) {
+	case "":
+		return "", true
+	case "I", "1":
+		return "1", true
+	case "II", "2":
+		return "2", true
+	case "III", "3":
+		return "3", true
+	default:
+		return "", false
+	}
+}
+
 func handleCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "only POST", http.StatusMethodNotAllowed)
@@ -224,9 +250,15 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	class, ok := cliClassArg(req.Class)
+	if !ok {
+		http.Error(w, "class must be one of I, II, III", http.StatusBadRequest)
+		return
+	}
+
 	args := []string{"check", req.Drug}
-	if req.Class != "" {
-		args = append(args, "--class", req.Class)
+	if class != "" {
+		args = append(args, "--class", class)
 	}
 	args = append(args, "--json")
 
