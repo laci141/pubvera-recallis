@@ -1207,7 +1207,7 @@
         if (initiation) lines.push("  date         = {" + initiation + "},");
         // No per-recall human-readable FDA page is constructible, so cite the API query with the quotes percent-encoded.
         if (num) lines.push("  url          = {https://api.fda.gov/drug/enforcement.json?search=" + encodeURIComponent('recall_number:"' + num + '"') + "},");
-        lines.push("  note         = {" + (cls ? cls + " — " : "") + (reason || "Exported from Recallis; data via openFDA") + "}");
+        lines.push("  note         = {" + (cls ? cls + " - " : "") + (reason || "Exported from Recallis; data via openFDA") + "}");
         lines.push("}");
         out.push(lines.join("\n"));
       });
