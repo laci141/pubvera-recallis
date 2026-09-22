@@ -1170,6 +1170,7 @@
    function bibEsc(v) { 
   return String(v == null ? "" : v)
     .normalize("NFC")
+    .replace(/[‐‑‒–—―−]/g, "-")
     .replace(/[{}\\]/g, "")
     .replace(/([&%#_$])/g, "\\$1")
     .replace(/\^/g, "\\textasciicircum{}")
