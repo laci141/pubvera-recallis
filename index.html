@@ -823,7 +823,7 @@
         const re = new RegExp('(' + highlightTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
         inner = inner.replace(re, '<mark style="background:#d97706;color:#000;border-radius:2px;padding:0 2px;">$1</mark>');
       }
-      return `<td class="clip" title="${esc(full)}">${inner}</td>`;
+      return `<td class="clip" title="${escAttr(full)}">${inner}</td>`;
     }
     function tableHead(cols) {
       return '<div class="table-wrap"><table class="result-table"><tr>' +
