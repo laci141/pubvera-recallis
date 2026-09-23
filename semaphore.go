@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -49,6 +50,13 @@ var cliSem = newCLISemaphore(cliSlotsFromEnv())
 // entirely, restoring pre-semaphore behaviour — the escape hatch if this ever
 // turns out wrong in production, reachable with an env var and a restart rather
 // than a deploy.
+//
+// The two unusual cases are logged: a switched-off bound, and a non-integer
+// value that silently falls back to the default. Before, either was visible
+// only by reading this code, so an operator who left the hatch open, or
+// mistyped the value, had nothing in the log to say so. An unset value and a
+// positive integer are the normal cases and stay quiet, so that a warning here
+// still means something.
 func cliSlotsFromEnv() int {
 	raw := strings.TrimSpace(os.Getenv("CLI_MAX_CONCURRENT"))
 	if raw == "" {
@@ -56,7 +64,11 @@ func cliSlotsFromEnv() int {
 	}
 	n, err := strconv.Atoi(raw)
 	if err != nil {
+		log.Printf("CLI_MAX_CONCURRENT=%q is not an integer; using the default of %d CLI slots", raw, defaultCLISlots)
 		return defaultCLISlots
+	}
+	if n <= 0 {
+		log.Printf("CLI_MAX_CONCURRENT=%q disables the CLI concurrency bound; every request spawns its child process immediately", raw)
 	}
 	return n
 }

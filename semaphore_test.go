@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -219,5 +221,48 @@ func TestCLISemaphoreDisabledIsANoOp(t *testing.T) {
 	t.Setenv("CLI_MAX_CONCURRENT", "not-a-number")
 	if got := cliSlotsFromEnv(); got != defaultCLISlots {
 		t.Errorf("unparseable env gave %d, want the default %d", got, defaultCLISlots)
+	}
+}
+
+// TestCLISlotsFromEnvWarnsOnUnusualValues pins that a disabled bound and an
+// unparseable value are logged, that the normal cases stay quiet, and that the
+// return values are unchanged by the logging.
+func TestCLISlotsFromEnvWarnsOnUnusualValues(t *testing.T) {
+	cases := []struct {
+		name    string
+		value   string
+		want    int
+		wantLog string // "" means the log must stay empty
+	}{
+		{"unset", "", defaultCLISlots, ""},
+		{"positive", "4", 4, ""},
+		{"zero", "0", 0, "disables the CLI concurrency bound"},
+		{"negative", "-1", -1, "disables the CLI concurrency bound"},
+		{"not an integer", "abc", defaultCLISlots, "is not an integer"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("CLI_MAX_CONCURRENT", tc.value)
+
+			var buf bytes.Buffer
+			prevOut, prevFlags := log.Writer(), log.Flags()
+			log.SetOutput(&buf)
+			t.Cleanup(func() {
+				log.SetOutput(prevOut)
+				log.SetFlags(prevFlags)
+			})
+
+			if got := cliSlotsFromEnv(); got != tc.want {
+				t.Errorf("cliSlotsFromEnv() with %q = %d, want %d", tc.value, got, tc.want)
+			}
+			logged := buf.String()
+			if tc.wantLog == "" {
+				if logged != "" {
+					t.Errorf("CLI_MAX_CONCURRENT=%q logged %q, want nothing", tc.value, logged)
+				}
+			} else if !strings.Contains(logged, tc.wantLog) {
+				t.Errorf("CLI_MAX_CONCURRENT=%q logged %q, want it to contain %q", tc.value, logged, tc.wantLog)
+			}
+		})
 	}
 }
