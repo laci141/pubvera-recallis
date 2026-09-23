@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -203,6 +205,72 @@ func writeRaw(w http.ResponseWriter, b []byte) {
 	w.Write(b)
 }
 
+// maxBodyBytes caps a request body. Every request this API accepts is a few
+// short fields; without a cap a client could stream an unbounded body into the
+// JSON decoder. Same value and helper as pubvera-grantvera.
+const maxBodyBytes = 64 << 10
+
+// Ceilings for the numeric fields. The values come from the frontend slider
+// maxima in index.html (firmLimit 50, recentDays 365, recentLimit 50): nothing
+// the page can send exceeds them, so a larger value is rejected, never clamped.
+const (
+	maxFirmLimit   = 50
+	maxRecentLimit = 50
+	maxRecentDays  = 365
+)
+
+// decodeJSONRequest is the one input boundary for every handler: it caps the
+// body size (413), rejects unknown fields so a typo cannot silently fall back
+// to a default, and rejects trailing data after the object (both 400).
+func decodeJSONRequest(w http.ResponseWriter, r *http.Request, dst any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return false
+		}
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return false
+	}
+	if err := dec.Decode(new(struct{})); err != io.EOF {
+		http.Error(w, "invalid JSON: trailing data after the request object", http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
+// validateTextArg trims a free-text field in place and rejects it when empty or
+// when it starts with '-'. The value is passed to the CLI as a positional
+// argument, and the CLI's flag parser treats it as one only because it does not
+// start with a dash: "--help" or "-json" would otherwise be read as a flag,
+// still spawn a process, hold a CLI slot, and come back as a 502.
+func validateTextArg(w http.ResponseWriter, name string, v *string) bool {
+	*v = strings.TrimSpace(*v)
+	if *v == "" {
+		http.Error(w, "missing "+name, http.StatusBadRequest)
+		return false
+	}
+	if strings.HasPrefix(*v, "-") {
+		http.Error(w, name+" must not start with '-'", http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
+// checkCeiling rejects a numeric field above its ceiling with a 400 naming the
+// field. It runs before defaults are applied; 0 and negatives pass through to
+// the default so an empty slider (JSON null → 0) keeps working.
+func checkCeiling(w http.ResponseWriter, name string, v, max int) bool {
+	if v > max {
+		http.Error(w, fmt.Sprintf("%s must be at most %d", name, max), http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
 // POST /api/check
 type checkRequest struct {
 	Drug  string `json:"drug"`
@@ -241,12 +309,10 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req checkRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
+	if !decodeJSONRequest(w, r, &req) {
 		return
 	}
-	if req.Drug == "" {
-		http.Error(w, "missing drug", http.StatusBadRequest)
+	if !validateTextArg(w, "drug", &req.Drug) {
 		return
 	}
 
@@ -283,12 +349,13 @@ func handleFirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req firmRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
+	if !decodeJSONRequest(w, r, &req) {
 		return
 	}
-	if req.Firm == "" {
-		http.Error(w, "missing firm", http.StatusBadRequest)
+	if !validateTextArg(w, "firm", &req.Firm) {
+		return
+	}
+	if !checkCeiling(w, "limit", req.Limit, maxFirmLimit) {
 		return
 	}
 	if req.Limit <= 0 {
@@ -318,8 +385,10 @@ func handleRecent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req recentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
+	if !decodeJSONRequest(w, r, &req) {
+		return
+	}
+	if !checkCeiling(w, "days", req.Days, maxRecentDays) || !checkCeiling(w, "limit", req.Limit, maxRecentLimit) {
 		return
 	}
 	if req.Days <= 0 {
@@ -351,12 +420,10 @@ func handleReference(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req referenceRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
+	if !decodeJSONRequest(w, r, &req) {
 		return
 	}
-	if req.RecallNumber == "" {
-		http.Error(w, "missing recall_number", http.StatusBadRequest)
+	if !validateTextArg(w, "recall_number", &req.RecallNumber) {
 		return
 	}
 
