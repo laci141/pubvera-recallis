@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -49,17 +50,9 @@ func main() {
 		port = "8094"
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/check", handleCheck)
-	mux.HandleFunc("/api/firm", handleFirm)
-	mux.HandleFunc("/api/recent", handleRecent)
-	mux.HandleFunc("/api/reference", handleReference)
-	mux.HandleFunc("/healthz", handleHealthz)
-	mux.HandleFunc("/", handleRoot)
-
 	srv := &http.Server{
 		Addr:              "0.0.0.0:" + port,
-		Handler:           mux,
+		Handler:           newMux(),
 		ReadHeaderTimeout: srvReadHeaderTimeout,
 		ReadTimeout:       srvReadTimeout,
 		WriteTimeout:      srvWriteTimeout,
@@ -71,6 +64,20 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
+}
+
+// newMux is the one route table. It lives outside main() so a test can send a
+// request through the same registration the server uses.
+func newMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/check", handleCheck)
+	mux.HandleFunc("/api/firm", handleFirm)
+	mux.HandleFunc("/api/recent", handleRecent)
+	mux.HandleFunc("/api/reference", handleReference)
+	mux.HandleFunc("/healthz", handleHealthz)
+	mux.HandleFunc("/readyz", handleReadyz)
+	mux.HandleFunc("/", handleRoot)
+	return mux
 }
 
 // browserConfig is the bootstrap payload /config.json hands to the page so it
@@ -115,6 +122,39 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
+}
+
+// handleReadyz answers a different question from /healthz. /healthz says the
+// process is alive; /readyz says it can do its work. Every API route runs the
+// CLI, so a missing or non-executable binary leaves /healthz saying "ok" while
+// every request comes back 502. /healthz and the Dockerfile HEALTHCHECK stay as
+// they are: a missing binary is not fixed by restarting the container, so
+// readiness must not drive restarts.
+//
+// It checks the path runCLI would run (cliBinary), but never runs it: a probe
+// that spawned the CLI would cost a process and hold one of the CLI slots on
+// every poll, competing with real requests.
+//
+// The body never names the path. It is internal detail, and /readyz may be
+// reachable from outside; the operator already sees the path in the startup log.
+//
+// The execute-bit check is skipped on Windows because Windows has no execute
+// bits for Go to report. Measured on this machine (go1.27.0 windows/amd64):
+// files written with 0644, 0755 and 0600 all stat as 0666, so the check would
+// report every binary as not executable.
+func handleReadyz(w http.ResponseWriter, r *http.Request) {
+	fi, err := os.Stat(cliBinary())
+	switch {
+	case err != nil:
+		http.Error(w, "not ready: cli binary missing", http.StatusServiceUnavailable)
+	case !fi.Mode().IsRegular():
+		http.Error(w, "not ready: cli binary is not a regular file", http.StatusServiceUnavailable)
+	case runtime.GOOS != "windows" && fi.Mode().Perm()&0o111 == 0:
+		http.Error(w, "not ready: cli binary is not executable", http.StatusServiceUnavailable)
+	default:
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ready"))
+	}
 }
 
 func cliBinary() string {
