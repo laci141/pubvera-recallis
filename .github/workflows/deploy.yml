@@ -28,10 +28,11 @@ jobs:
       contents: read
       packages: write
     steps:
+      # No lfs: true. The only LFS-tracked file was the vendored CLI binary,
+      # which is gone: the Dockerfile builds the CLI from a pinned upstream
+      # commit instead.
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          lfs: true
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -139,7 +140,7 @@ jobs:
       # deploy were all green — so this builds the image locally first and
       # compares the label with the commit pinned in the Dockerfile, BEFORE
       # anything is pushed. A mismatch stops the job, so an image that cannot
-      # say where its CLI came from never reaches :latest.
+      # say which upstream commit its CLI came from never reaches :latest.
       #
       # The second build below reuses the gha cache this one fills, so the
       # extra cost is the load into the runner's Docker, not a rebuild.

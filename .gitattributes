@@ -6,21 +6,10 @@
 # eol=lf overrides core.autocrlf=true, which is what put the CRLF there.
 *.go text eol=lf
 
-# The vendored CLI is tracked with Git LFS. git cannot delta-compress a 19 MB
-# binary between versions, so every vendoring added another full copy to the
-# history permanently. Measured on 2026-09-20: 12 distinct blobs, and the
-# packed repository at 37 MiB after gc.
-#
-# LFS stores a ~130 byte pointer in the commit and keeps the binary outside the
-# object database, so a clone fetches the current version instead of all twelve.
-#
-# -text is explicit rather than left to content sniffing: the file has no
-# extension, and a single converted byte would corrupt the ELF silently.
-#
-# This stops future growth only. The twelve blobs already in the history stay
-# where they are: removing them means rewriting history, which invalidates every
-# existing clone and every commit hash. That is a separate decision.
-#
-# Anyone checking out this repository needs git-lfs installed. CI already checks
-# out with lfs: true.
-bin/drug-enforcement-pp-cli-linux filter=lfs diff=lfs merge=lfs -text
+# There is no Git LFS rule any more. The vendored CLI binary
+# (bin/drug-enforcement-pp-cli-linux) was the only LFS-tracked file; the image
+# now builds the CLI from a pinned upstream commit (see the Dockerfile), so
+# the binary and vendor-cli.sh were removed. Their old blobs and LFS objects
+# stay in the history: removing those means rewriting history, which
+# invalidates every existing clone and commit hash. That is a separate
+# decision.
