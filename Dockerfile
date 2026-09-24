@@ -53,7 +53,6 @@ COPY --from=cli-builder /go/bin/drug-enforcement-pp-cli ./drug-enforcement-pp-cl
 RUN chmod +x ./server ./drug-enforcement-pp-cli
 
 # The upstream commit the CLI was built from, readable with docker inspect.
-ARG PP_LIBRARY_COMMIT
 LABEL org.pubvera.cli.commit=${PP_LIBRARY_COMMIT}
 
 ENV CLI_BIN=/app/drug-enforcement-pp-cli
