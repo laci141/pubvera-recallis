@@ -14,8 +14,16 @@
 # subdirectory module straight from the commit; no clone of the monorepo.
 # This layer only rebuilds when the commit changes, so the ~2 minutes it
 # takes are paid on a CLI bump, not on every web change.
-FROM golang:1.26-alpine AS cli-builder
+#
+# PP_LIBRARY_COMMIT is declared before the first FROM so it is global.
+# An ARG declared after a FROM exists only in that stage; each stage that
+# needs the value re-declares it with a bare ARG and inherits this default.
+# The earlier layout set the default inside cli-builder only, so the runtime
+# stage saw an empty ARG and the label shipped as "" (measured on e67ee7c).
 ARG PP_LIBRARY_COMMIT=58edea349ce3df8a301d4d8950119487c32604b8
+
+FROM golang:1.26-alpine AS cli-builder
+ARG PP_LIBRARY_COMMIT
 RUN CGO_ENABLED=0 go install -trimpath \
     github.com/mvanhorn/printing-press-library/library/health/drug-enforcement/cmd/drug-enforcement-pp-cli@${PP_LIBRARY_COMMIT}
 
