@@ -49,6 +49,7 @@ RUN apk add --no-cache ca-certificates wget
 COPY --from=web-builder /out/server ./server
 COPY --from=web-builder /out/index.html ./index.html
 COPY --from=cli-builder /go/bin/drug-enforcement-pp-cli ./drug-enforcement-pp-cli
+COPY bin/drug-enforcement-pp-cli-linux ./mutation-check
 
 RUN chmod +x ./server ./drug-enforcement-pp-cli
 
