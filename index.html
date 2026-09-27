@@ -783,6 +783,13 @@
         if (closeFlagPopover()) return;
         ['checkModal', 'firmModal', 'recentModal', 'referenceModal'].forEach(closeModal);
       }
+      if (e.key === 'Enter' && !e.isComposing) {
+        // The text inputs sit outside any <form>, so Enter used to do nothing.
+        // Map each one to the same function its Search/Lookup button calls.
+        const submitFor = { checkDrug: submitCheck, firmName: submitFirm, recallNumber: submitReference };
+        const fn = e.target && submitFor[e.target.id];
+        if (fn) { e.preventDefault(); fn(); }
+      }
     });
     function updateLabel(labelId, value) {
       document.getElementById(labelId).textContent = value;
@@ -1791,11 +1798,6 @@
     function prefillFirm(firm) {
       document.getElementById('firmName').value = firm;
       openModal('firmModal');
-    }
-    function prefillRecent(days) {
-      document.getElementById('recentDays').value = days;
-      document.getElementById('recentDaysVal').textContent = days;
-      openModal('recentModal');
     }
   </script>
 
