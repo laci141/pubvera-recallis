@@ -4,7 +4,8 @@ Search FDA drug recalls and enforcement reports by drug, firm, date window or
 recall number. Part of the Pubvera suite; live at `https://recallis.pubvera.com`.
 
 Data source: the openFDA drug enforcement API, queried through the
-`drug-enforcement-pp-cli` command-line tool. No API key is needed.
+`drug-enforcement-pp-cli` command-line tool. No API key is needed; an optional
+one raises the openFDA rate limit (see `OPENFDA_API_KEY` below).
 
 ## How it works
 
@@ -44,11 +45,27 @@ Other routes:
 | `PORT` | `8094` | Listen port (binds `0.0.0.0`) |
 | `CLI_BIN` | `./drug-enforcement-pp-cli` | Path to the CLI binary (`/app/drug-enforcement-pp-cli` in the image) |
 | `CLI_MAX_CONCURRENT` | `4` | Max CLI child processes at once; `0` or negative disables the bound (logged) |
+| `OPENFDA_API_KEY` | — | Optional openFDA API key (see below); never logged |
 | `SUPABASE_URL` | — | Enables Google sign-in when set together with the key below |
 | `SUPABASE_PUBLISHABLE_KEY` | — | Supabase publishable key (not the secret key) |
 
 Without both Supabase variables the page runs unauthenticated and Supabase is
 never loaded.
+
+### openFDA API key (optional)
+
+Set `OPENFDA_API_KEY` to send an openFDA key with every request. Get a free key
+at <https://open.fda.gov/apis/authentication/>. Unset or empty, the app behaves
+as it does without a key.
+
+- The key is an environment variable only. Never commit it, put it in the
+  `Dockerfile`, or pass it on a command line.
+- At startup the server writes a temporary config file (mode `0600`, in a
+  private directory) and points the CLI at it with `DRUG_ENFORCEMENT_CONFIG`.
+  The file is removed on shutdown.
+- The startup log says `openfda key: set` or `openfda key: unset`, never the
+  value. The key and its base64 form are redacted from CLI stderr in logs and
+  errors.
 
 ## Timeouts
 
