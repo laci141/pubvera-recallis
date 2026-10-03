@@ -3,16 +3,20 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -49,6 +53,14 @@ func main() {
 	if port == "" {
 		port = "8094"
 	}
+
+	// Read once, here. An unreadable temp dir is fatal rather than a silent
+	// fallback to keyless: an operator who set a key expects it to be used.
+	cleanupKey, err := initOpenFDAKey(os.Getenv(openFDAKeyEnv))
+	if err != nil {
+		log.Fatalf("openfda key: %v", err)
+	}
+	defer cleanupKey()
 
 	srv := &http.Server{
 		Addr:              "0.0.0.0:" + port,
@@ -157,6 +169,94 @@ func handleReadyz(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// openFDAKeyEnv names the variable that holds the openFDA API key. Same name as
+// in pubvera-devicera and pubvera-trialvera, so one variable serves every
+// Pubvera app that calls openFDA. Unset or empty means keyless, as before.
+const openFDAKeyEnv = "OPENFDA_API_KEY"
+
+// openFDAState is what initOpenFDAKey leaves behind: the key (for redaction)
+// and the path of the generated CLI config. nil means keyless.
+type openFDAState struct {
+	key        string
+	configPath string
+}
+
+var openFDA atomic.Pointer[openFDAState]
+
+// initOpenFDAKey prepares the key for the child CLI and returns a func that
+// removes what it created. The CLI has no env var for the key, but its config
+// file takes an auth_header that it sends as the Authorization header, and
+// openFDA accepts the key as a Basic-auth username. So the key is written to a
+// 0600 file in a private (0700, os.MkdirTemp) directory and the CLI is pointed
+// at that file with DRUG_ENFORCEMENT_CONFIG. The key is therefore never in
+// argv, in any base URL, or in a URL at all.
+//
+// No base_url line: a config file only overrides the fields it names, and the
+// CLI's default is already https://api.fda.gov.
+//
+// The startup log says set or unset and nothing else: not the value, its
+// length or its prefix.
+func initOpenFDAKey(key string) (cleanup func(), err error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		openFDA.Store(nil)
+		log.Print("openfda key: unset")
+		return func() {}, nil
+	}
+	dir, err := os.MkdirTemp("", "recallis-openfda-")
+	if err != nil {
+		return nil, fmt.Errorf("create config dir: %w", err)
+	}
+	path := filepath.Join(dir, "config.toml")
+	content := "auth_header = \"Basic " + base64.StdEncoding.EncodeToString([]byte(key+":")) + "\"\n"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		os.RemoveAll(dir)
+		return nil, fmt.Errorf("write config: %w", err)
+	}
+	openFDA.Store(&openFDAState{key: key, configPath: path})
+	log.Print("openfda key: set")
+	return func() {
+		openFDA.Store(nil)
+		os.RemoveAll(dir)
+	}, nil
+}
+
+// cliEnv is the child's environment. With no key it is nil, which makes the
+// child inherit ours exactly as before. With a key it is ours plus the config
+// path; exec keeps the last of duplicate names, so this overrides an inherited
+// DRUG_ENFORCEMENT_CONFIG.
+func cliEnv() []string {
+	st := openFDA.Load()
+	if st == nil {
+		return nil
+	}
+	return append(os.Environ(), "DRUG_ENFORCEMENT_CONFIG="+st.configPath)
+}
+
+// redactKey replaces the key and its encoded forms in text with [REDACTED]. The
+// CLI masks the credential in its own errors; this is the second layer, for
+// anything it writes that its masking missed. Longest forms go first so a
+// shorter one cannot leave a fragment of a longer one behind.
+func redactKey(text string) string {
+	st := openFDA.Load()
+	if st == nil || text == "" {
+		return text
+	}
+	k := st.key
+	for _, needle := range []string{
+		base64.StdEncoding.EncodeToString([]byte(k + ":")),
+		base64.RawStdEncoding.EncodeToString([]byte(k + ":")),
+		base64.StdEncoding.EncodeToString([]byte(k)),
+		base64.RawStdEncoding.EncodeToString([]byte(k)),
+		url.QueryEscape(k),
+		url.PathEscape(k),
+		k,
+	} {
+		text = strings.ReplaceAll(text, needle, "[REDACTED]")
+	}
+	return text
+}
+
 func cliBinary() string {
 	if b := os.Getenv("CLI_BIN"); b != "" {
 		return b
@@ -202,11 +302,11 @@ func runCLI(ctx context.Context, args ...string) ([]byte, error) {
 
 	bin := cliBinary()
 	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.Env = cliEnv()
 	// stderr is captured separately: cmd.Output() discards it, so a CLI that
 	// explains itself on stderr and exits non-zero left only "exit status 1"
-	// for the reader. This app is keyless, so there is no BYOK secret to redact
-	// and stderr can go to the log verbatim, capped so a chatty CLI cannot
-	// flood it.
+	// for the reader. With an openFDA key set, stderr goes through redactKey
+	// before it is logged, and it is capped so a chatty CLI cannot flood the log.
 	//
 	// It does NOT go to the client. What the CLI writes on failure is its own
 	// usage text, its version banner and raw upstream messages, none of it
@@ -223,16 +323,16 @@ func runCLI(ctx context.Context, args ...string) ([]byte, error) {
 			log.Printf("cli: fail cmd=%s wait_ms=%d elapsed_ms=%d err=deadline", label, waitMS, elapsed)
 			return nil, fmt.Errorf("CLI stopped after %s: %v", cliRunTimeout, ctxErr)
 		}
-		msg := strings.TrimSpace(stderr.String())
+		msg := redactKey(strings.TrimSpace(stderr.String()))
 		log.Printf("cli: fail cmd=%s wait_ms=%d elapsed_ms=%d err=%v stderr=%s", label, waitMS, elapsed, err, truncate(msg, 2000))
-		return nil, fmt.Errorf("CLI error: %v", err)
+		return nil, fmt.Errorf("CLI error: %s", redactKey(err.Error()))
 	}
 	// A successful run can still have written to stderr, and those messages are
 	// the ones worth seeing: the CLI prints its rate-limit and server-error
 	// retries there while the command goes on to succeed. Logging stderr only on
 	// failure discarded exactly the warnings that explain a slow but successful
 	// request. Operator information, never sent to the client.
-	if w := strings.TrimSpace(stderr.String()); w != "" {
+	if w := redactKey(strings.TrimSpace(stderr.String())); w != "" {
 		log.Printf("cli: ok cmd=%s wait_ms=%d elapsed_ms=%d bytes=%d stderr=%s", label, waitMS, elapsed, stdout.Len(), truncate(w, 300))
 	} else {
 		log.Printf("cli: ok cmd=%s wait_ms=%d elapsed_ms=%d bytes=%d", label, waitMS, elapsed, stdout.Len())
