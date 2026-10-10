@@ -44,7 +44,9 @@ COPY index.html /out/
 FROM alpine:3.24
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates wget
+# The unprivileged user the server runs as (see USER below). UID 10001 is the
+# same as the other Pubvera apps. adduser -D also creates /home/app.
+RUN apk add --no-cache ca-certificates wget && adduser -D -u 10001 app
 
 COPY --from=web-builder /out/server ./server
 COPY --from=web-builder /out/index.html ./index.html
@@ -68,5 +70,11 @@ EXPOSE 8094
 # working if PORT is ever unset.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget -qO- "http://localhost:${PORT:-8094}/healthz" || exit 1
+
+# The server ran as root (UID 0, measured with docker top on 2026-10-10). Its
+# writes go to the CLI's HTTP cache under /home/app and to a temporary OpenFDA
+# config under /tmp, both writable by this user. CI checks the UID of PID 1 in
+# the running image.
+USER app
 
 CMD ["./server"]
