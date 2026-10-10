@@ -49,31 +49,7 @@ const (
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8094"
-	}
-
-	// Read once, here. An unreadable temp dir is fatal rather than a silent
-	// fallback to keyless: an operator who set a key expects it to be used.
-	cleanupKey, err := initOpenFDAKey(os.Getenv(openFDAKeyEnv))
-	if err != nil {
-		log.Fatalf("openfda key: %v", err)
-	}
-	defer cleanupKey()
-
-	srv := &http.Server{
-		Addr:              "0.0.0.0:" + port,
-		Handler:           newMux(),
-		ReadHeaderTimeout: srvReadHeaderTimeout,
-		ReadTimeout:       srvReadTimeout,
-		WriteTimeout:      srvWriteTimeout,
-		IdleTimeout:       srvIdleTimeout,
-	}
-
-	log.Printf("recallis listening on 0.0.0.0:%s (CLI=%s, timeout=%s, slots=%d)",
-		port, cliBinary(), cliRunTimeout, cliSem.capacity())
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := runMain(); err != nil {
 		log.Fatal(err)
 	}
 }

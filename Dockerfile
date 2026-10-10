@@ -32,7 +32,7 @@ FROM golang:1.26-alpine AS web-builder
 WORKDIR /src
 
 COPY go.mod ./
-COPY main.go semaphore.go index.html ./
+COPY main.go run.go semaphore.go index.html ./
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o /out/server .
 COPY index.html /out/
