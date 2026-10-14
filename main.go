@@ -32,8 +32,9 @@ const cliRunTimeout = 120 * time.Second
 // the page can ask for came to 105,877 bytes (firm Pfizer --limit 50),
 // 105,246 (firm Teva --limit 50), 99,241 (recent --days 365 --limit 50) and
 // 55,957 (check ibuprofen); the largest single record was 3,284 bytes. 4 MiB is
-// about 40 times the largest response: 50 rows, the ceiling of every endpoint,
-// would need records averaging over 80 KB each to reach it. A stdout over the
+// about 11 times the largest response at the 200-row ceiling (365,015 bytes,
+// firm Pfizer --limit 200, measured 2026-10-14); 200 rows would need records
+// averaging over 20 KB each to reach it. A stdout over the
 // limit kills the child and fails the request; it is never served truncated.
 //
 // cliStderrLimit only bounds what is kept for the log, and the child keeps
@@ -398,11 +399,11 @@ func writeRaw(w http.ResponseWriter, b []byte) {
 const maxBodyBytes = 64 << 10
 
 // Ceilings for the numeric fields. The values come from the frontend slider
-// maxima in index.html (firmLimit 50, recentDays 365, recentLimit 50): nothing
+// maxima in index.html (firmLimit 200, recentDays 365, recentLimit 200): nothing
 // the page can send exceeds them, so a larger value is rejected, never clamped.
 const (
-	maxFirmLimit   = 50
-	maxRecentLimit = 50
+	maxFirmLimit   = 200
+	maxRecentLimit = 200
 	maxRecentDays  = 365
 )
 

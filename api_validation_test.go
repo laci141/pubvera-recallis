@@ -120,12 +120,12 @@ func TestNumericCeilings(t *testing.T) {
 		body string
 		want int
 	}{
-		{"firm limit 51", handleFirm, `{"firm":"Pfizer","limit":51}`, http.StatusBadRequest},
-		{"recent limit 51", handleRecent, `{"limit":51}`, http.StatusBadRequest},
+		{"firm limit 201", handleFirm, `{"firm":"Pfizer","limit":201}`, http.StatusBadRequest},
+		{"recent limit 201", handleRecent, `{"limit":201}`, http.StatusBadRequest},
 		{"recent days 366", handleRecent, `{"days":366}`, http.StatusBadRequest},
 		// At the ceiling: not rejected, so the CLI is attempted.
-		{"firm limit 50", handleFirm, `{"firm":"Pfizer","limit":50}`, http.StatusBadGateway},
-		{"recent limit 50", handleRecent, `{"limit":50}`, http.StatusBadGateway},
+		{"firm limit 200", handleFirm, `{"firm":"Pfizer","limit":200}`, http.StatusBadGateway},
+		{"recent limit 200", handleRecent, `{"limit":200}`, http.StatusBadGateway},
 		{"recent days 365", handleRecent, `{"days":365}`, http.StatusBadGateway},
 		// Zero, negative and null keep the default path.
 		{"firm limit 0", handleFirm, `{"firm":"Pfizer","limit":0}`, http.StatusBadGateway},

@@ -702,7 +702,7 @@
           <label>Limit Results</label>
           <span id="firmLimitVal">15</span>
         </div>
-        <input type="range" id="firmLimit" min="1" max="50" value="15" oninput="updateLabel('firmLimitVal', this.value)" />
+        <input type="range" id="firmLimit" min="1" max="200" value="15" oninput="updateLabel('firmLimitVal', this.value)" />
       </div>
       <button class="modal-btn" onclick="submitFirm()">Search</button>
       <div id="firmResult"></div>
@@ -724,7 +724,7 @@
           <label>Limit Results</label>
           <span id="recentLimitVal">15</span>
         </div>
-        <input type="range" id="recentLimit" min="1" max="50" value="15" oninput="updateLabel('recentLimitVal', this.value)" />
+        <input type="range" id="recentLimit" min="1" max="200" value="15" oninput="updateLabel('recentLimitVal', this.value)" />
       </div>
       <button class="modal-btn" onclick="submitRecent()">Search</button>
       <div id="recentResult"></div>
