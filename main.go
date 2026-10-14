@@ -24,6 +24,30 @@ import (
 // at all before this: a stuck CLI ran until the parent process exited.
 const cliRunTimeout = 120 * time.Second
 
+// CLI output limits. Time and concurrency were bounded, bytes were not: both
+// streams went into unbounded buffers, and truncating the log line afterwards
+// did nothing for the memory already spent.
+//
+// cliStdoutLimit is measured, not guessed. On 2026-10-14 the largest responses
+// the page can ask for came to 105,877 bytes (firm Pfizer --limit 50),
+// 105,246 (firm Teva --limit 50), 99,241 (recent --days 365 --limit 50) and
+// 55,957 (check ibuprofen); the largest single record was 3,284 bytes. 4 MiB is
+// about 40 times the largest response: 50 rows, the ceiling of every endpoint,
+// would need records averaging over 80 KB each to reach it. A stdout over the
+// limit kills the child and fails the request; it is never served truncated.
+//
+// cliStderrLimit only bounds what is kept for the log, and the child keeps
+// running: every measured run wrote 0 bytes of stderr, and the log shows at
+// most 2000 characters of it, which 64 KiB covers several times over.
+const (
+	cliStdoutLimit = 4 << 20
+	cliStderrLimit = 64 << 10
+)
+
+// errCLIOutputTooLarge marks a run stopped because its stdout passed
+// cliStdoutLimit.
+var errCLIOutputTooLarge = fmt.Errorf("CLI output exceeded the %d-byte limit", cliStdoutLimit)
+
 // Server-side timeouts. ReadHeaderTimeout was the only one set, which left the
 // request BODY with no deadline at all: a size limit is not a time limit, and a
 // client that sends its body one byte per minute holds a handler goroutine for
@@ -275,9 +299,13 @@ func runCLI(ctx context.Context, args ...string) ([]byte, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, cliRunTimeout)
 	defer cancel()
+	// A child of the timeout context, so stopping a run for its output size
+	// leaves ctx.Err() — and with it the deadline report below — untouched.
+	runCtx, stopRun := context.WithCancel(ctx)
+	defer stopRun()
 
 	bin := cliBinary()
-	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd := exec.CommandContext(runCtx, bin, args...)
 	cmd.Env = cliEnv()
 	// stderr is captured separately: cmd.Output() discards it, so a CLI that
 	// explains itself on stderr and exits non-zero left only "exit status 1"
@@ -288,12 +316,19 @@ func runCLI(ctx context.Context, args ...string) ([]byte, error) {
 	// usage text, its version banner and raw upstream messages, none of it
 	// bounded. That is operator information: it belongs in the log, not in an
 	// HTTP response body.
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	//
+	// Both buffers are capped while the child writes (see cliStdoutLimit).
+	stdout := &cappedBuffer{limit: cliStdoutLimit, onLimit: stopRun}
+	stderr := &cappedBuffer{limit: cliStderrLimit}
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	runStart := time.Now()
 	err = cmd.Run()
 	elapsed := time.Since(runStart).Milliseconds()
+	if stdout.exceeded {
+		log.Printf("cli: fail cmd=%s wait_ms=%d elapsed_ms=%d err=stdout over %d bytes, child stopped", label, waitMS, elapsed, cliStdoutLimit)
+		return nil, fmt.Errorf("CLI error: %w", errCLIOutputTooLarge)
+	}
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			log.Printf("cli: fail cmd=%s wait_ms=%d elapsed_ms=%d err=deadline", label, waitMS, elapsed)
@@ -315,6 +350,42 @@ func runCLI(ctx context.Context, args ...string) ([]byte, error) {
 	}
 	return stdout.Bytes(), nil
 }
+
+// cappedBuffer is an io.Writer that keeps at most limit bytes. Past the limit it
+// sets exceeded; with onLimit set it calls it once and fails the write, which
+// stops exec copying the stream, otherwise it drops the excess and reports
+// success, so a chatty child is not disturbed.
+//
+// The bytes.Buffer is a named field, not embedded: embedding would promote
+// ReadFrom, and io.Copy — which exec uses to fill this writer — prefers
+// ReadFrom over Write, which would bypass the limit entirely.
+type cappedBuffer struct {
+	buf      bytes.Buffer
+	limit    int
+	onLimit  func()
+	exceeded bool
+}
+
+func (b *cappedBuffer) Write(p []byte) (int, error) {
+	room := b.limit - b.buf.Len()
+	if len(p) <= room {
+		return b.buf.Write(p)
+	}
+	b.buf.Write(p[:room])
+	if b.onLimit == nil {
+		b.exceeded = true
+		return len(p), nil
+	}
+	if !b.exceeded {
+		b.exceeded = true
+		b.onLimit()
+	}
+	return room, errCLIOutputTooLarge
+}
+
+func (b *cappedBuffer) Len() int       { return b.buf.Len() }
+func (b *cappedBuffer) Bytes() []byte  { return b.buf.Bytes() }
+func (b *cappedBuffer) String() string { return b.buf.String() }
 
 func writeRaw(w http.ResponseWriter, b []byte) {
 	w.Header().Set("Content-Type", "application/json")

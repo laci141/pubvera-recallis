@@ -1,9 +1,12 @@
 name: Build and Deploy Recallis
 
 # pull_request runs every check below against the proposed change, but never
-# publishes an image: the GHCR login and the push are both gated on the event
-# not being a pull_request. Watchtower on the server deploys whatever :latest
-# points at, so a PR that could push :latest would deploy unmerged code.
+# publishes an image. Watchtower on the server deploys whatever :latest points
+# at, so only main may publish: the GHCR login and the push are both gated on
+#   github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+# A workflow_dispatch from any other branch runs every check and builds the
+# image, but never logs in and never moves :latest. tools/publish_gate_test.js
+# evaluates both conditions for every trigger.
 on:
   push:
     branches: [main]
@@ -210,23 +213,26 @@ jobs:
           fi
           echo "PID 1 runs as non-root"
 
-      # Skipped on pull_request: a PR build proves the image builds, but has no
-      # reason to hold registry credentials.
+      # Skipped on pull_request and on any ref other than main: a PR build or a
+      # manual run from a branch proves the image builds, but has no reason to
+      # hold registry credentials. workflow_dispatch lets the caller pick the
+      # branch, so the event check alone let a branch publish.
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # On pull_request the image is built but not pushed, so :latest — and
-      # therefore what Watchtower deploys — only ever moves on main.
+      # Same condition as the login: the image is always built, but pushed only
+      # from main, so :latest — and therefore what Watchtower deploys — only
+      # ever moves on main.
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}

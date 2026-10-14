@@ -796,6 +796,9 @@
       document.getElementById(labelId).textContent = value;
     }
     // openFDA returns dates as YYYYMMDD; render ISO YYYY-MM-DD so date columns sort correctly.
+    // Both return PLAIN TEXT (the exports use them), and anything that is not
+    // YYYYMMDD comes back as raw openFDA text, so every HTML insertion point
+    // wraps them in esc(). tools/date_render_test.js checks every such site.
     function isoDate(s) {
       const m = /^(\d{4})(\d{2})(\d{2})$/.exec(s || '');
       if (m) return `${m[1]}-${m[2]}-${m[3]}`;
@@ -908,7 +911,7 @@
 
     function rowCommon(r, highlightTerm) {
       return recallCell(r, rowFlags(r, highlightTerm)) +
-             `<td class="nowrap">${fmtDate(r.recall_initiation_date)}</td>` +
+             `<td class="nowrap">${esc(fmtDate(r.recall_initiation_date))}</td>` +
              `<td class="nowrap">${getClassBadge(r.classification)}</td>` +
              clipCell(r.product_description, highlightTerm) +
              clipCell(r.reason_for_recall, null);
@@ -1048,6 +1051,16 @@
 
     const EMPTY_EXPORT_MSG = "Run an analysis first — or clear the filters, nothing is visible.";
 
+    // Spreadsheet formula injection: Excel and LibreOffice read a text cell whose
+    // first non-blank character is = + - or @, or that starts with a tab or CR,
+    // as a formula. Quoting does not stop that; a leading apostrophe does. Text
+    // only: strictly numeric strings ("-5") pass unchanged, and callers never
+    // pass real numbers. Same rule as pubvera-devicera's CSV export.
+    function neutralizeFormula(s) {
+      if (/^-?\d+(\.\d+)?$/.test(s)) return s;
+      return /^[ \t\r\n]*[=+\-@]|^[\t\r]/.test(s) ? "'" + s : s;
+    }
+
     // ── CSV (RFC4180). Excel-safe: BOM + CRLF + explicit separator hint. ──
     function toCSV(rows, header) {
       const cols = [];
@@ -1058,6 +1071,7 @@
         if (v === null || v === undefined || v === false) return "";
         if (v === true) return "Yes";
         let s = (typeof v === "object") ? JSON.stringify(v) : String(v);
+        if (typeof v !== "number") s = neutralizeFormula(s);
         if (/[",\r\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
         return s;
       };
@@ -1076,6 +1090,18 @@
       triggerDownload(new Blob([toCSV(ex.rows, exportHeader(key, ex.rows))], { type: "text/csv;charset=utf-8" }), filename);
     }
 
+    // One data value as handed to SheetJS. xlsx-js-style 1.2.0 (SheetJS 0.18.5)
+    // stores a string as a t="str" cell with no <f>, so the file itself carries
+    // no formula; but editing such a cell in Excel re-parses it, and a sheet
+    // saved back to CSV carries the raw text. So text gets the same apostrophe
+    // as the CSV. Numbers stay numbers.
+    function xlsxCell(v) {
+      if (v === null || v === undefined || v === false) return "";
+      if (v === true) return "Yes";
+      if (typeof v === "object") return JSON.stringify(v);
+      return (typeof v === "string") ? neutralizeFormula(v) : v;
+    }
+
     // ── XLSX: centered numbers, left-aligned long text, styled header ──
     function downloadXLSX(key, filename) {
       if (!lastData[key]) { alert("Run a search first."); return; }
@@ -1085,12 +1111,7 @@
       const cols = [];
       rows.forEach(r => Object.keys(r || {}).forEach(k => { if (!cols.includes(k)) cols.push(k); }));
       // Row 0: provenance title (merged, grey italic) · row 1: column header · data from row 2.
-      const aoa = [[exportHeader(key, rows)], cols].concat(rows.map(r => cols.map(c => {
-        const v = r ? r[c] : "";
-        if (v === null || v === undefined || v === false) return "";
-        if (v === true) return "Yes";
-        return (typeof v === "object") ? JSON.stringify(v) : v;
-      })));
+      const aoa = [[exportHeader(key, rows)], cols].concat(rows.map(r => cols.map(c => xlsxCell(r ? r[c] : ""))));
       const ws = XLSX.utils.aoa_to_sheet(aoa);
 
       // Measure each column: long free text goes left and wide, short values centre.
@@ -1786,7 +1807,7 @@
         html += `<p><strong>Product:</strong> ${esc(rec.product_description || 'N/A')}</p>`;
         html += `<p><strong>Reason:</strong> ${esc(rec.reason_for_recall || 'N/A')}</p>`;
         html += lots;
-        html += `<p><strong>Date Initiated:</strong> ${fmtDate(rec.recall_initiation_date)}</p>`;
+        html += `<p><strong>Date Initiated:</strong> ${esc(fmtDate(rec.recall_initiation_date))}</p>`;
         html += '</div>';
         html += '<div class="link-btns">';
         html += `<a class="link-btn" href="${fdaSearchUrl(rec.product_description ? rec.product_description.split(',')[0] : rec.recall_number)}" target="_blank" rel="noopener">🔍 Search on FDA.gov</a>`;
