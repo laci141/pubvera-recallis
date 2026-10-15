@@ -401,10 +401,13 @@ const maxBodyBytes = 64 << 10
 // Ceilings for the numeric fields. The values come from the frontend slider
 // maxima in index.html (firmLimit 200, recentDays 365, recentLimit 200): nothing
 // the page can send exceeds them, so a larger value is rejected, never clamped.
+// The drug search has no slider: the page sends no limit, so the server
+// default for check is its ceiling.
 const (
 	maxFirmLimit   = 200
 	maxRecentLimit = 200
 	maxRecentDays  = 365
+	maxCheckLimit  = 200
 )
 
 // decodeJSONRequest is the one input boundary for every handler: it caps the
@@ -463,6 +466,7 @@ func checkCeiling(w http.ResponseWriter, name string, v, max int) bool {
 type checkRequest struct {
 	Drug  string `json:"drug"`
 	Class string `json:"class,omitempty"`
+	Limit int    `json:"limit,omitempty"`
 }
 
 // cliClassArg translates the recall class as the PAGE names it into the value
@@ -491,6 +495,19 @@ func cliClassArg(class string) (string, bool) {
 	}
 }
 
+// checkCLIArgs builds the CLI argv for a drug search. --limit is always sent:
+// the CLI default (25) silently cut results, e.g. 25 of 68 Ibuprofen recalls.
+func checkCLIArgs(drug, class string, limit int) []string {
+	if limit <= 0 {
+		limit = maxCheckLimit
+	}
+	args := []string{"check", drug}
+	if class != "" {
+		args = append(args, "--class", class)
+	}
+	return append(args, "--limit", fmt.Sprintf("%d", limit), "--json")
+}
+
 func handleCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "only POST", http.StatusMethodNotAllowed)
@@ -509,12 +526,11 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "class must be one of I, II, III", http.StatusBadRequest)
 		return
 	}
-
-	args := []string{"check", req.Drug}
-	if class != "" {
-		args = append(args, "--class", class)
+	if !checkCeiling(w, "limit", req.Limit, maxCheckLimit) {
+		return
 	}
-	args = append(args, "--json")
+
+	args := checkCLIArgs(req.Drug, class, req.Limit)
 
 	out, err := runCLI(r.Context(), args...)
 	if err != nil {
