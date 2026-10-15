@@ -25,10 +25,13 @@ All four search endpoints take a JSON request body (max 64 KiB).
 
 | Endpoint | Body fields | Defaults and limits |
 |---|---|---|
-| `/api/check` | `drug` (required), `class` (optional) | — |
-| `/api/firm` | `firm` (required), `limit` | `limit` default 15, max 50 |
-| `/api/recent` | `days`, `limit` | `days` default 30, max 365; `limit` default 15, max 50 |
+| `/api/check` | `drug` (required), `class` (optional), `limit` (optional) | `limit` default 200, max 200 |
+| `/api/firm` | `firm` (required), `limit` | `limit` default 15, max 200 |
+| `/api/recent` | `days`, `limit` | `days` default 30, max 365; `limit` default 15, max 200 |
 | `/api/reference` | `recall_number` (required) | — |
+
+A value above its maximum returns `400`; it is not clamped. A `limit` of `0`,
+a negative value or a missing field uses the default.
 
 Other routes:
 
