@@ -131,6 +131,9 @@ func TestNumericCeilings(t *testing.T) {
 		{"firm limit 0", handleFirm, `{"firm":"Pfizer","limit":0}`, http.StatusBadGateway},
 		{"recent days -1", handleRecent, `{"days":-1}`, http.StatusBadGateway},
 		{"recent null", handleRecent, `{"days":null,"limit":null}`, http.StatusBadGateway},
+		{"check limit 201", handleCheck, `{"drug":"ibuprofen","limit":201}`, http.StatusBadRequest},
+		{"check limit 200", handleCheck, `{"drug":"ibuprofen","limit":200}`, http.StatusBadGateway},
+		{"check limit 0", handleCheck, `{"drug":"ibuprofen","limit":0}`, http.StatusBadGateway},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -183,5 +186,31 @@ func TestLeadingDashRejected(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestCheckCLIArgs(t *testing.T) {
+	cases := []struct {
+		name  string
+		class string
+		limit int
+		want  []string
+	}{
+		{"zero uses ceiling", "", 0, []string{"check", "ibuprofen", "--limit", "200", "--json"}},
+		{"negative uses ceiling", "", -1, []string{"check", "ibuprofen", "--limit", "200", "--json"}},
+		{"class and limit", "1", 50, []string{"check", "ibuprofen", "--class", "1", "--limit", "50", "--json"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := checkCLIArgs("ibuprofen", c.class, c.limit)
+			if len(got) != len(c.want) {
+				t.Fatalf("args = %q, want %q", got, c.want)
+			}
+			for i := range got {
+				if got[i] != c.want[i] {
+					t.Fatalf("args = %q, want %q", got, c.want)
+				}
+			}
+		})
 	}
 }
