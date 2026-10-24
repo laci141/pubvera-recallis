@@ -144,6 +144,25 @@ if (hasXlsxCell && hasHelper) {
   check("j) xlsx object -> JSON", xlsxCell({ a: 1 }) === '{"a":1}');
 }
 
+// k) full-width starters are neutralised in CSV and XLSX, also after leading whitespace
+const FULLWIDTH = ["\uFF1D1+1", "\uFF0B1+1", "\uFF0D1+1", "\uFF20SUM(A1:A2)", " \uFF1D1+1", "\n\uFF1D1+1"];
+FULLWIDTH.forEach(s => {
+  const got = firstData(s);
+  check("k) csv neutralised " + JSON.stringify(s), got === "'" + s, "got " + JSON.stringify(got));
+});
+if (hasXlsxCell && hasHelper) {
+  const { xlsxCell: xlsxCellFw } = load({ functions: ["neutralizeFormula", "xlsxCell"] });
+  FULLWIDTH.forEach(s => {
+    check("k) xlsx neutralised " + JSON.stringify(s), xlsxCellFw(s) === "'" + s, "got " + JSON.stringify(xlsxCellFw(s)));
+  });
+}
+
+// l) full-width characters that are not a leading starter stay unchanged
+["a\uFF1Db", "Pfizer \uFF20 x", "\uFF41bc"].forEach(s => {
+  const got = firstData(s);
+  check("l) unchanged " + JSON.stringify(s), got === s, "got " + JSON.stringify(got));
+});
+
 if (failed) {
   console.log(failed + " check(s) failed");
   process.exit(1);
