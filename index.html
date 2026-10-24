@@ -1058,7 +1058,7 @@
     // pass real numbers. Same rule as pubvera-devicera's CSV export.
     function neutralizeFormula(s) {
       if (/^-?\d+(\.\d+)?$/.test(s)) return s;
-      return /^[ \t\r\n]*[=+\-@]|^[\t\r]/.test(s) ? "'" + s : s;
+      return /^[ \t\r\n]*[=+\-@\uFF1D\uFF0B\uFF0D\uFF20]|^[\t\r]/.test(s) ? "'" + s : s;
     }
 
     // ── CSV (RFC4180). Excel-safe: BOM + CRLF + explicit separator hint. ──
