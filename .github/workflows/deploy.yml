@@ -24,11 +24,19 @@ env:
   # Same version as pubvera-grantvera, so the two apps are judged alike.
   GOVULNCHECK_VERSION: v1.8.0
 
+# One run per ref at a time, never cancelled: the version step counts the tags
+# already on origin, so two overlapping runs on main could otherwise both
+# compute the same N.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-26.04
+    # contents: write is for the git tag and GitHub Release the last step makes.
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       # No lfs: true. The only LFS-tracked file was the vendored CLI binary,
@@ -36,6 +44,21 @@ jobs:
       # commit instead.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # CalVer YYYY.MM.DD.N: the UTC date plus 1 + the number of tags
+      # vYYYY.MM.DD.* already on origin. Same condition as the GHCR login and
+      # the push, so a workflow_dispatch on main is versioned too and never
+      # publishes a "dev" image to :latest. Every other build uses "dev".
+      - name: Compute version
+        id: version
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          D=$(date -u +%Y.%m.%d)
+          N=$(git ls-remote --tags origin "refs/tags/v$D.*" | wc -l)
+          VERSION="$D.$((N + 1))"
+          echo "version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -160,6 +183,10 @@ jobs:
           load: true
           push: false
           tags: recallis-label-check:ci
+          # Same APP_VERSION as the push below, so that build reuses these
+          # layers from the gha cache instead of rebuilding the web server.
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.version || 'dev' }}
           cache-from: type=gha
 
       - name: Check the CLI commit label
@@ -236,7 +263,26 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.version.outputs.version && format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.version.outputs.version) || '' }}
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.version || 'dev' }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # After the push, so a release never names an image that does not exist.
+      # The first release has no earlier tag to diff against, so it gets fixed
+      # notes instead of --generate-notes.
+      - name: Create GitHub release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$(gh release list --limit 1 --json tagName --jq length)" = "0" ]; then
+            gh release create "v$VERSION" --target "$GITHUB_SHA" --title "Recallis $VERSION" --notes "Baseline release: first versioned build. Earlier history is in the merged pull requests."
+          else
+            gh release create "v$VERSION" --target "$GITHUB_SHA" --title "Recallis $VERSION" --generate-notes
+          fi

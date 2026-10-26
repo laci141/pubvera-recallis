@@ -34,7 +34,9 @@ WORKDIR /src
 COPY go.mod ./
 COPY main.go run.go semaphore.go index.html ./
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o /out/server .
+# The CalVer version from the release workflow; "dev" for any other build.
+ARG APP_VERSION=dev
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-X main.version=${APP_VERSION}" -o /out/server .
 COPY index.html /out/
 
 # ---- Stage 3: minimal runtime ----
@@ -57,6 +59,10 @@ RUN chmod +x ./server ./drug-enforcement-pp-cli
 # The upstream commit the CLI was built from, readable with docker inspect.
 ARG PP_LIBRARY_COMMIT
 LABEL org.pubvera.cli.commit=${PP_LIBRARY_COMMIT}
+
+# The CalVer version the server reports on /version.
+ARG APP_VERSION=dev
+LABEL org.opencontainers.image.version=$APP_VERSION
 
 ENV CLI_BIN=/app/drug-enforcement-pp-cli
 ENV PORT=8094
