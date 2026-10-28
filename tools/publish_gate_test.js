@@ -3,11 +3,13 @@
 // Run: node tools/publish_gate_test.js
 //
 // Watchtower deploys whatever :latest points at, so only main may publish.
-// This reads the REAL conditions on the two publishing steps (the GHCR login's
-// if: and the build-and-push step's push:) and evaluates them for each way the
-// workflow can start. The evaluator understands only what these conditions
-// need: github.event_name, github.ref, string literals, == != && || ! and
-// parentheses. Anything else fails the test instead of being guessed at.
+// This reads the REAL conditions that decide a publish (the publish job's if:,
+// which gates the GHCR login and every push, and the Compute version step's
+// if:, whose output the publish job refuses to run without) and evaluates them
+// for each way the workflow can start. The evaluator understands only what
+// these conditions need: github.event_name, github.ref, string literals,
+// == != && || ! and parentheses. Anything else fails the test instead of
+// being guessed at.
 // String comparison ignores case, as GitHub's expression syntax does.
 "use strict";
 const fs = require("fs");
@@ -86,14 +88,33 @@ function evaluate(expr, ctx) {
   return truthy(v);
 }
 
+// The lines of one job, from its "  <name>:" line to the next job or the next
+// top-level key. Comments and blank lines do not end it.
+function job(name) {
+  const lines = yml.split(/\r?\n/);
+  const i = lines.findIndex(l => l === "  " + name + ":");
+  if (i < 0) return null;
+  const out = [lines[i]];
+  for (let j = i + 1; j < lines.length; j++) {
+    const l = lines[j];
+    if (l.trim() !== "" && !/^\s*#/.test(l) && /^ {0,2}\S/.test(l)) break;
+    out.push(l);
+  }
+  return out.join("\n");
+}
+const jobIf = jobText => { const m = /^    if:\s*(.+?)\s*$/m.exec(jobText || ""); return m ? m[1] : null; };
+
+const publishJob = job("publish");
+const buildJob = job("build");
+const version = step("Compute version");
 const login = step("Log in to GHCR");
-const publish = step("Build and push");
-check("GHCR login step exists", !!login);
-check("build-and-push step exists", !!publish);
-const loginIf = field(login, "if");
-const pushExpr = field(publish, "push");
-check("GHCR login has an if: condition", !!loginIf, String(loginIf));
-check("build-and-push has a push: expression", !!pushExpr, String(pushExpr));
+check("publish job exists", !!publishJob);
+check("build job exists", !!buildJob);
+check("Compute version step exists", !!version);
+const publishIf = jobIf(publishJob);
+const versionIf = field(version, "if");
+check("publish job has an if: condition", !!publishIf, String(publishIf));
+check("Compute version has an if: condition", !!versionIf, String(versionIf));
 
 const scenarios = [
   { name: "push to main", ctx: { event_name: "push", ref: "refs/heads/main" }, want: true },
@@ -107,7 +128,9 @@ const scenarios = [
   { name: "push to non-main branch", ctx: { event_name: "push", ref: "refs/heads/feature-x" }, want: false }
 ];
 
-for (const [label, expr] of [["GHCR login", loginIf], ["build-and-push push", pushExpr]]) {
+// The publish job refuses an empty VERSION, so the version step must run on
+// exactly the runs that publish: the same answer in every scenario.
+for (const [label, expr] of [["publish job", publishIf], ["Compute version", versionIf]]) {
   if (!expr) continue;
   for (const s of scenarios) {
     let got;
@@ -117,14 +140,26 @@ for (const [label, expr] of [["GHCR login", loginIf], ["build-and-push push", pu
   }
 }
 
-// :latest is only ever written by the gated step; the label-check build never pushes.
-const labelBuild = step("Build image for the label check");
-check("label-check build has push: false", field(labelBuild, "push") === "false", String(field(labelBuild, "push")));
-const code = yml.split(/\r?\n/).filter(l => !/^\s*#/.test(l)).join("\n");
-const latestSteps = code.split(/\n\s*- name: /).filter(s => /:latest\b/.test(s)).map(s => s.split(/\r?\n/)[0]);
-check(":latest is tagged only by the build-and-push step",
-  latestSteps.length === 1 && /Build and push/.test(latestSteps[0]), JSON.stringify(latestSteps));
+// The GHCR login is gated by the publish job's if:, so it lives in that job
+// and nowhere else.
+check("GHCR login step exists", !!login);
+check("GHCR login is in the publish job", !!login && !!publishJob && publishJob.includes(login));
 check("only one step logs in to a registry", (yml.match(/docker\/login-action@/g) || []).length === 1);
+
+// The build job never pushes: both of its image builds have push: false, and
+// every docker push is in the publish job.
+const labelBuild = step("Build image for the label check");
+const exportBuild = step("Build and export");
+check("label-check build has push: false", field(labelBuild, "push") === "false", String(field(labelBuild, "push")));
+check("Build and export has push: false", field(exportBuild, "push") === "false", String(field(exportBuild, "push")));
+const code = yml.split(/\r?\n/).filter(l => !/^\s*#/.test(l));
+const pushLines = code.filter(l => /\bdocker push\b/.test(l)).map(l => l.trim());
+check("every docker push is in the publish job (" + pushLines.length + " lines)",
+  pushLines.length > 0 && !!publishJob && pushLines.every(l => publishJob.includes(l)) && !(buildJob || "").includes("docker push"),
+  JSON.stringify(pushLines));
+const latestPush = pushLines.filter(l => /:latest\b/.test(l));
+check(":latest is pushed only by the Load and push step",
+  latestPush.length === 1 && !!step("Load and push") && step("Load and push").includes(latestPush[0]), JSON.stringify(latestPush));
 
 if (failed) {
   console.log(failed + " check(s) failed");
