@@ -1,12 +1,14 @@
 name: Build and Deploy Recallis
 
 # pull_request runs every check below against the proposed change, but never
-# publishes an image. Watchtower on the server deploys whatever :latest points
-# at, so only main may publish: the GHCR login and the push are both gated on
-#   github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-# A workflow_dispatch from any other branch runs every check and builds the
-# image, but never logs in and never moves :latest. tools/publish_gate_test.js
-# evaluates both conditions for every trigger.
+# publishes an image. The build job has a read-only token on every event. Only
+# the publish job holds packages: write, logs in to GHCR and pushes, and it
+# runs only on push or workflow_dispatch from refs/heads/main, so a manual run
+# on another branch runs every check and builds the image but cannot push
+# either. Watchtower on the server deploys whatever :latest points at, so
+# anything that could push :latest off main would deploy unmerged code.
+# tools/publish_gate_test.js evaluates the publish job's condition for every
+# trigger.
 on:
   push:
     branches: [main]
@@ -31,23 +33,36 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+# Default for every job: read-only. A job that needs more says so itself.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-26.04
-    # contents: write is for the git tag and GitHub Release the last step makes.
+    # The version the Compute version step makes, read by the publish job for
+    # the version tag and the release. Empty on pull_request and off main.
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    # Read-only token: this job also runs on pull_request, with the tests, the
+    # Go dependencies and the Docker build. Only the publish job below, gated
+    # on push or workflow_dispatch from main, can write to GHCR.
     permissions:
-      contents: write
-      packages: write
+      contents: read
     steps:
       # No lfs: true. The only LFS-tracked file was the vendored CLI binary,
       # which is gone: the Dockerfile builds the CLI from a pinned upstream
       # commit instead.
+      # persist-credentials: false keeps the token out of .git/config. The
+      # repository is public, so the version step's git ls-remote needs none.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # CalVer YYYY.MM.DD.N: the UTC date plus 1 + the number of tags
-      # vYYYY.MM.DD.* already on origin. Same condition as the GHCR login and
-      # the push, so a workflow_dispatch on main is versioned too and never
+      # vYYYY.MM.DD.* already on origin. Same main-only condition as the
+      # publish job, so a workflow_dispatch on main is versioned too and never
       # publishes a "dev" image to :latest. Every other build uses "dev".
       - name: Compute version
         id: version
@@ -183,7 +198,7 @@ jobs:
           load: true
           push: false
           tags: recallis-label-check:ci
-          # Same APP_VERSION as the push below, so that build reuses these
+          # Same APP_VERSION as the export below, so that build reuses these
           # layers from the gha cache instead of rebuilding the web server.
           build-args: |
             APP_VERSION=${{ steps.version.outputs.version || 'dev' }}
@@ -240,26 +255,17 @@ jobs:
           fi
           echo "PID 1 runs as non-root"
 
-      # Skipped on pull_request and on any ref other than main: a PR build or a
-      # manual run from a branch proves the image builds, but has no reason to
-      # hold registry credentials. workflow_dispatch lets the caller pick the
-      # branch, so the event check alone let a branch publish.
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Same condition as the login: the image is always built, but pushed only
-      # from main, so :latest — and therefore what Watchtower deploys — only
-      # ever moves on main.
-      - name: Build and push
+      # The image is built once and exported as a tar, never pushed from here:
+      # this job has no registry login and a read-only token. The tags are the
+      # final GHCR names, so docker load in the publish job restores them as
+      # they are. The version tag is only set on main; the publish job tags it
+      # again from this job's version output.
+      - name: Build and export
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          push: false
+          outputs: type=docker,dest=${{ runner.temp }}/recallis-image.tar
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
@@ -271,18 +277,78 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # After the push, so a release never names an image that does not exist.
-      # The first release has no earlier tag to diff against, so it gets fixed
-      # notes instead of --generate-notes.
-      - name: Create GitHub release
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
+      # build-push-action@v7 does not accept an image ID file input (it warns
+      # "Unexpected input(s)" and writes its own temp file instead), so the ID
+      # is read from the exported tar itself. An empty iid.txt fails the step.
+      - name: Write image ID
         run: |
           set -euo pipefail
-          if [ "$(gh release list --limit 1 --json tagName --jq length)" = "0" ]; then
-            gh release create "v$VERSION" --target "$GITHUB_SHA" --title "Recallis $VERSION" --notes "Baseline release: first versioned build. Earlier history is in the merged pull requests."
+          docker load --input "$RUNNER_TEMP/recallis-image.tar"
+          docker image inspect --format '{{.Id}}' "$REGISTRY/$IMAGE_NAME:latest" > "$RUNNER_TEMP/iid.txt"
+          test -s "$RUNNER_TEMP/iid.txt"
+          echo "build iid: $(cat "$RUNNER_TEMP/iid.txt")"
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: recallis-image
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/recallis-image.tar
+            ${{ runner.temp }}/iid.txt
+
+  # The only job that can write packages. It runs on push or workflow_dispatch
+  # from main only, so :latest (and what Watchtower deploys) only moves on main;
+  # a workflow_dispatch on any other branch stops after the build job. The
+  # CalVer version tag and the GitHub Release are also created only here.
+  publish:
+    needs: build
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-26.04
+    # contents: write is for the git tag and GitHub Release the last step makes.
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: recallis-image
+          path: ${{ runner.temp }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Load and push
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -n "$VERSION" || { echo "no version computed"; exit 1; }
+          docker load --input "$RUNNER_TEMP/recallis-image.tar"
+          docker tag "$REGISTRY/$IMAGE_NAME:latest" "$REGISTRY/$IMAGE_NAME:$VERSION"
+          echo "build iid: $(cat "$RUNNER_TEMP/iid.txt")"
+          echo "loaded Id: $(docker image inspect --format '{{.Id}}' "$REGISTRY/$IMAGE_NAME:latest")"
+          docker push "$REGISTRY/$IMAGE_NAME:latest"
+          docker push "$REGISTRY/$IMAGE_NAME:${GITHUB_SHA}"
+          docker push "$REGISTRY/$IMAGE_NAME:$VERSION"
+
+      # After the pushes, so a release never names an image that does not
+      # exist. The first release has no earlier tag to diff against, so it gets
+      # fixed notes instead of --generate-notes. This job has no checkout, so
+      # every gh call names the repository with --repo.
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq length)" = "0" ]; then
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Recallis $VERSION" --notes "Baseline release: first versioned build. Earlier history is in the merged pull requests."
           else
-            gh release create "v$VERSION" --target "$GITHUB_SHA" --title "Recallis $VERSION" --generate-notes
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Recallis $VERSION" --generate-notes
           fi
