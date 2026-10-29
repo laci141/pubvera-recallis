@@ -12,7 +12,9 @@
 //      exactly the three range labels;
 //   T6 the real listener functions run in a vm sandbox and call the real
 //      function names with the old arguments, one case per action, per chip
-//      and per range mirror.
+//      and per range mirror;
+//   T7 the 40 chips are native <button type="button"> elements with the old
+//      data-action/data-arg, font: inherit and :focus-visible outlines.
 // A listener that cannot be found is a FAIL, never a silent pass.
 "use strict";
 const fs = require("fs");
@@ -152,6 +154,42 @@ for (const id of MIRRORS) {
     ['updateLabel("' + id + '","17")']);
 }
 tcase("input without data-mirror does nothing", h => { h.input({}, "99"); return h.calls; }, []);
+
+// ── T7: the 40 chips are native buttons, reachable and operable by keyboard ──
+// The data-action/data-arg pairs as they were on the <div> chips (main 7cf0a76).
+const CHIPS_BEFORE = [
+  ...["Aspirin", "Ibuprofen", "Acetaminophen", "Metformin", "Losartan", "Amoxicillin",
+    "Atorvastatin", "Omeprazole", "Insulin", "Duloxetine", "Lisinopril", "Amlodipine",
+    "Gabapentin", "Sertraline", "Levothyroxine", "Valsartan", "Ranitidine", "Prednisone",
+    "Warfarin", "Naproxen"].map(a => "prefill-check|" + a),
+  ...["Pfizer", "Teva", "Sandoz", "Aurobindo", "Hospira", "Sun Pharma", "Dr. Reddy", "Amneal",
+    "Glenmark", "Zydus", "Mylan", "Lupin", "Cipla", "Apotex", "Fresenius Kabi", "Baxter",
+    "Torrent", "Novartis", "Merck", "Johnson &amp; Johnson"].map(a => "prefill-firm|" + a),
+];
+check("T7 no <div class=\"chip remains (found " + count('<div class="chip"') + " + " +
+  count('<div class="chip ') + ")", count('<div class="chip"') + count('<div class="chip ') === 0);
+// Any tag whose class list holds the token "chip" (not chip-group-label or hero-chips).
+const chipTags = [...html.matchAll(/<([a-z][a-z0-9]*)\b[^>]*\sclass="([^"]*)"[^>]*>/g)]
+  .filter(m => m[2].split(/\s+/).includes("chip"));
+const notButton = chipTags.filter(m => m[1] !== "button" || !m[0].startsWith('<button type="button" '));
+check("T7 every class=\"chip\" element is a <button type=\"button\"> (found " + chipTags.length +
+  ", not: " + (notButton.map(m => "L" + lineOf(m.index) + " <" + m[1]).join(", ") || "none") + ")",
+  chipTags.length === 40 && notButton.length === 0);
+const btnChips = [...html.matchAll(/<button type="button" class="chip(?: firm-chip)?" data-action="(prefill-check|prefill-firm)" data-arg="([^"]*)">([^<]*)<\/button>/g)];
+const got = btnChips.map(m => m[1] + "|" + m[2]);
+check("T7 button chips keep data-action and data-arg in order (found " + got.length + ", differ: " +
+  (CHIPS_BEFORE.filter((c, i) => got[i] !== c).join(", ") || "none") + ")",
+  JSON.stringify(got) === JSON.stringify(CHIPS_BEFORE));
+const bCheck = btnChips.filter(m => m[1] === "prefill-check" && !/firm-chip/.test(m[0])).length;
+const bFirm = btnChips.filter(m => m[1] === "prefill-firm" && /firm-chip/.test(m[0])).length;
+check("T7 button chips per group = 20 + 20 (found " + bCheck + " + " + bFirm + ")", bCheck === 20 && bFirm === 20);
+const chipRule = /^\s*\.chip\s*\{([^}]*)\}/m.exec(html);
+check("T7 the .chip rule sets font: inherit", !!chipRule && /(^|[;{\s])font\s*:\s*inherit\s*(;|$)/m.test(chipRule[1]));
+for (const [sel, re] of [[".chip:focus-visible", /^\s*\.chip:focus-visible\s*\{[^}]*\boutline\s*:\s*[^;}]*solid/m],
+  [".chip.firm-chip:focus-visible", /^\s*\.chip\.firm-chip:focus-visible\s*\{[^}]*\boutline\s*:\s*[^;}]*solid/m]]) {
+  check("T7 a " + sel + " rule draws a solid outline", re.test(html));
+}
+check("T7 no chip has tabindex=\"-1\"", chipTags.every(m => !/\stabindex="-1"/.test(m[0])));
 
 if (ran === 0) {
   console.error("FAIL: zero checks ran - refusing to pass silently");
