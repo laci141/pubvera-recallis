@@ -183,7 +183,13 @@
       margin-left: auto;
       margin-right: auto;
     }
+    /* The chips are <button>s: font: inherit (before font-size, which it would
+       reset) and appearance: none undo the browser button defaults, so they
+       look like the old <div> chips. */
     .chip {
+      font: inherit;
+      -webkit-appearance: none;
+      appearance: none;
       padding: 6px 12px;
       background: rgba(220, 38, 38, 0.15);
       border: 1px solid rgba(220, 38, 38, 0.4);
@@ -200,6 +206,8 @@
       color: #fdba74;
     }
     .chip.firm-chip:hover { background: rgba(234, 88, 12, 0.3); border-color: rgba(234, 88, 12, 0.7); }
+    .chip:focus-visible { outline: 2px solid rgb(220, 38, 38); outline-offset: 2px; }
+    .chip.firm-chip:focus-visible { outline: 2px solid rgb(234, 88, 12); outline-offset: 2px; }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -612,49 +620,49 @@
       <p>Search FDA drug recalls and enforcement reports by drug, firm or classification — open data, keyless.</p>
       <div class="chip-group-label">💊 Popular drugs</div>
       <div class="hero-chips">
-        <div class="chip" data-action="prefill-check" data-arg="Aspirin">Aspirin</div>
-        <div class="chip" data-action="prefill-check" data-arg="Ibuprofen">Ibuprofen</div>
-        <div class="chip" data-action="prefill-check" data-arg="Acetaminophen">Acetaminophen</div>
-        <div class="chip" data-action="prefill-check" data-arg="Metformin">Metformin</div>
-        <div class="chip" data-action="prefill-check" data-arg="Losartan">Losartan</div>
-        <div class="chip" data-action="prefill-check" data-arg="Amoxicillin">Amoxicillin</div>
-        <div class="chip" data-action="prefill-check" data-arg="Atorvastatin">Atorvastatin</div>
-        <div class="chip" data-action="prefill-check" data-arg="Omeprazole">Omeprazole</div>
-        <div class="chip" data-action="prefill-check" data-arg="Insulin">Insulin</div>
-        <div class="chip" data-action="prefill-check" data-arg="Duloxetine">Duloxetine</div>
-        <div class="chip" data-action="prefill-check" data-arg="Lisinopril">Lisinopril</div>
-        <div class="chip" data-action="prefill-check" data-arg="Amlodipine">Amlodipine</div>
-        <div class="chip" data-action="prefill-check" data-arg="Gabapentin">Gabapentin</div>
-        <div class="chip" data-action="prefill-check" data-arg="Sertraline">Sertraline</div>
-        <div class="chip" data-action="prefill-check" data-arg="Levothyroxine">Levothyroxine</div>
-        <div class="chip" data-action="prefill-check" data-arg="Valsartan">Valsartan</div>
-        <div class="chip" data-action="prefill-check" data-arg="Ranitidine">Ranitidine</div>
-        <div class="chip" data-action="prefill-check" data-arg="Prednisone">Prednisone</div>
-        <div class="chip" data-action="prefill-check" data-arg="Warfarin">Warfarin</div>
-        <div class="chip" data-action="prefill-check" data-arg="Naproxen">Naproxen</div>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Aspirin">Aspirin</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Ibuprofen">Ibuprofen</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Acetaminophen">Acetaminophen</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Metformin">Metformin</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Losartan">Losartan</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Amoxicillin">Amoxicillin</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Atorvastatin">Atorvastatin</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Omeprazole">Omeprazole</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Insulin">Insulin</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Duloxetine">Duloxetine</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Lisinopril">Lisinopril</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Amlodipine">Amlodipine</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Gabapentin">Gabapentin</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Sertraline">Sertraline</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Levothyroxine">Levothyroxine</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Valsartan">Valsartan</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Ranitidine">Ranitidine</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Prednisone">Prednisone</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Warfarin">Warfarin</button>
+        <button type="button" class="chip" data-action="prefill-check" data-arg="Naproxen">Naproxen</button>
       </div>
       <div class="chip-group-label">🏭 Major manufacturers</div>
       <div class="hero-chips" style="margin-bottom: 4px;">
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Pfizer">Pfizer</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Teva">Teva</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Sandoz">Sandoz</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Aurobindo">Aurobindo</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Hospira">Hospira</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Sun Pharma">Sun Pharma</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Dr. Reddy">Dr. Reddy's</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Amneal">Amneal</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Glenmark">Glenmark</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Zydus">Zydus</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Mylan">Mylan</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Lupin">Lupin</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Cipla">Cipla</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Apotex">Apotex</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Fresenius Kabi">Fresenius Kabi</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Baxter">Baxter</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Torrent">Torrent</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Novartis">Novartis</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Merck">Merck</div>
-        <div class="chip firm-chip" data-action="prefill-firm" data-arg="Johnson &amp; Johnson">Johnson & Johnson</div>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Pfizer">Pfizer</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Teva">Teva</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Sandoz">Sandoz</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Aurobindo">Aurobindo</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Hospira">Hospira</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Sun Pharma">Sun Pharma</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Dr. Reddy">Dr. Reddy's</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Amneal">Amneal</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Glenmark">Glenmark</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Zydus">Zydus</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Mylan">Mylan</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Lupin">Lupin</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Cipla">Cipla</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Apotex">Apotex</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Fresenius Kabi">Fresenius Kabi</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Baxter">Baxter</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Torrent">Torrent</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Novartis">Novartis</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Merck">Merck</button>
+        <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Johnson &amp; Johnson">Johnson & Johnson</button>
       </div>
     </div>
     <div class="grid">
