@@ -11,9 +11,9 @@ import (
 	"testing"
 )
 
-// CSP phase 1: every <script> tag in index.html carries nonce="__CSP_NONCE__",
+// CSP phase 2: every <script> tag in index.html carries nonce="__CSP_NONCE__",
 // and each index response replaces that marker with a fresh nonce named in the
-// Content-Security-Policy-Report-Only header. All requests go through newMux
+// Content-Security-Policy header. All requests go through newMux
 // in-process (httptest), like root_cache_test.go.
 
 // wantPolicy is written out here rather than taken from contentSecurityPolicy,
@@ -50,10 +50,10 @@ func indexNonce(t *testing.T) (string, string, http.Header) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /: status = %d, want 200", rec.Code)
 	}
-	csp := rec.Header().Get(reportOnlyHeader)
+	csp := rec.Header().Get(enforcingHeader)
 	m := cspNonceRE.FindStringSubmatch(csp)
 	if m == nil {
-		t.Fatalf("GET /: %s = %q, want a policy with a 22-character nonce", reportOnlyHeader, csp)
+		t.Fatalf("GET /: %s = %q, want a policy with a 22-character nonce", enforcingHeader, csp)
 	}
 	return m[1], rec.Body.String(), rec.Header()
 }
@@ -94,25 +94,25 @@ func TestCSPHeaderNonceMatchesEveryBodyNonce(t *testing.T) {
 	}
 }
 
-func TestCSPHeaderIsReportOnlyWithExactPolicy(t *testing.T) {
+func TestCSPHeaderIsEnforcingWithExactPolicy(t *testing.T) {
 	nonce, _, h := indexNonce(t)
-	if got := h.Get(reportOnlyHeader); got != wantPolicy(nonce) {
-		t.Errorf("%s = %q, want %q", reportOnlyHeader, got, wantPolicy(nonce))
+	if got := h.Get(enforcingHeader); got != wantPolicy(nonce) {
+		t.Errorf("%s = %q, want %q", enforcingHeader, got, wantPolicy(nonce))
 	}
-	if cspHeaderName != reportOnlyHeader {
-		t.Errorf("cspHeaderName = %q, want %q", cspHeaderName, reportOnlyHeader)
+	if cspHeaderName != enforcingHeader {
+		t.Errorf("cspHeaderName = %q, want %q", cspHeaderName, enforcingHeader)
 	}
 }
 
-// TestCSPIndexSendsOnlyTheReportOnlyHeader does not use indexNonce, so a
-// missing Report-Only header does not hide the enforcing-header check.
-func TestCSPIndexSendsOnlyTheReportOnlyHeader(t *testing.T) {
+// TestCSPIndexSendsOnlyTheEnforcingHeader does not use indexNonce, so a
+// missing enforcing header does not hide the Report-Only check.
+func TestCSPIndexSendsOnlyTheEnforcingHeader(t *testing.T) {
 	rec := getRoot(t, newMux(), "/", "")
-	if got := rec.Header().Get(reportOnlyHeader); got == "" {
-		t.Errorf("GET /: %s = %q, want a policy", reportOnlyHeader, got)
+	if got := rec.Header().Get(enforcingHeader); got == "" {
+		t.Errorf("GET /: %s = %q, want a policy", enforcingHeader, got)
 	}
-	if got := rec.Header().Get(enforcingHeader); got != "" {
-		t.Errorf("GET /: %s = %q, want none: phase 1 blocks nothing", enforcingHeader, got)
+	if got := rec.Header().Get(reportOnlyHeader); got != "" {
+		t.Errorf("GET /: %s = %q, want none: phase 2 is enforcing", reportOnlyHeader, got)
 	}
 }
 
