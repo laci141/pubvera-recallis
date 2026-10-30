@@ -132,10 +132,26 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(browserConfig{SupabaseURL: supaURL, SupabaseAnonKey: supaKey})
 	case "/":
-		// Revalidate on every load so a deploy is visible immediately; ServeFile
-		// answers If-Modified-Since with 304, which keeps that cheap.
-		w.Header().Set("Cache-Control", "no-cache")
-		http.ServeFile(w, r, "index.html")
+		data, err := os.ReadFile("index.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		// Fail closed: without a fresh nonce there is no page and no policy.
+		var nb [16]byte
+		if _, err := nonceRandRead(nb[:]); err != nil {
+			log.Printf("csp nonce: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		nonce := base64.RawStdEncoding.EncodeToString(nb[:])
+		data = bytes.ReplaceAll(data, []byte(nonceMarker), []byte(nonce))
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		// Never stored, so a deploy is visible on the next load and a cached
+		// copy cannot replay one nonce to every visitor.
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set(cspHeaderName, contentSecurityPolicy(nonce))
+		_, _ = w.Write(data)
 	default:
 		http.NotFound(w, r)
 	}
