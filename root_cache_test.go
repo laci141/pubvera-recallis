@@ -6,11 +6,11 @@ import (
 	"testing"
 )
 
-// The index page must be revalidated on every load, so a deploy is visible
-// immediately instead of whenever a browser's heuristic cache expires. Without
-// a Cache-Control header neither Caddy nor Cloudflare adds one, and browsers
-// fall back to heuristic freshness from Last-Modified. no-cache (not no-store)
-// keeps the 304 path, so a revalidation stays cheap.
+// The index page must never be stored, so a deploy is visible on the next load
+// instead of whenever a browser's heuristic cache expires, and a cached copy
+// cannot replay one CSP nonce to every visitor. ServeFile is gone (see
+// main.go): no Last-Modified, and an If-Modified-Since request still gets the
+// full page with a fresh nonce, never a 304.
 
 func getRoot(t *testing.T, h http.Handler, path, ifModifiedSince string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -23,27 +23,26 @@ func getRoot(t *testing.T, h http.Handler, path, ifModifiedSince string) *httpte
 	return rec
 }
 
-func TestIndexIsRevalidatedOnEveryLoad(t *testing.T) {
+func TestIndexIsNeverStored(t *testing.T) {
 	mux := newMux()
 
 	first := getRoot(t, mux, "/", "")
 	if first.Code != http.StatusOK {
 		t.Fatalf("GET /: status = %d, want 200", first.Code)
 	}
-	if cc := first.Header().Get("Cache-Control"); cc != "no-cache" {
-		t.Errorf("GET /: Cache-Control = %q, want %q", cc, "no-cache")
+	if cc := first.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("GET /: Cache-Control = %q, want %q", cc, "no-store")
+	}
+	if lm := first.Header().Get("Last-Modified"); lm != "" {
+		t.Errorf("GET /: Last-Modified = %q, want none (it enables a 304)", lm)
 	}
 
-	lastMod := first.Header().Get("Last-Modified")
-	if lastMod == "" {
-		t.Fatalf("GET /: no Last-Modified header, so a revalidation cannot be tested")
+	second := getRoot(t, mux, "/", "Mon, 01 Jan 2035 00:00:00 GMT")
+	if second.Code != http.StatusOK {
+		t.Errorf("GET / with If-Modified-Since: status = %d, want 200, never 304", second.Code)
 	}
-	second := getRoot(t, mux, "/", lastMod)
-	if second.Code != http.StatusNotModified {
-		t.Errorf("GET / with If-Modified-Since: status = %d, want 304", second.Code)
-	}
-	if cc := second.Header().Get("Cache-Control"); cc != "no-cache" {
-		t.Errorf("GET / with If-Modified-Since: Cache-Control = %q, want %q", cc, "no-cache")
+	if cc := second.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("GET / with If-Modified-Since: Cache-Control = %q, want %q", cc, "no-store")
 	}
 }
 
