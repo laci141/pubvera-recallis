@@ -32,7 +32,7 @@ FROM golang:1.26-alpine AS web-builder
 WORKDIR /src
 
 COPY go.mod ./
-COPY main.go run.go semaphore.go index.html ./
+COPY main.go run.go semaphore.go csp.go index.html ./
 
 # The CalVer version from the release workflow; "dev" for any other build.
 ARG APP_VERSION=dev
