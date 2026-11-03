@@ -13,13 +13,20 @@ import (
 
 // CSP phase 2: every <script> tag in index.html carries nonce="__CSP_NONCE__",
 // and each index response replaces that marker with a fresh nonce named in the
-// Content-Security-Policy header. All requests go through newMux
+// Content-Security-Policy header. Style S1: the one <style> tag carries the same
+// marker, and the style policy is sent as Content-Security-Policy-Report-Only. All requests go through newMux
 // in-process (httptest), like root_cache_test.go.
 
 // wantPolicy is written out here rather than taken from contentSecurityPolicy,
 // so a change to any directive in csp.go fails a test.
 func wantPolicy(nonce string) string {
 	return "script-src 'nonce-" + nonce + "' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+}
+
+// wantStylePolicy is the S1 Report-Only style policy, written out for the same
+// reason.
+func wantStylePolicy(nonce string) string {
+	return "style-src 'nonce-" + nonce + "'; style-src-attr 'none'"
 }
 
 // The header names and the marker are spelled out so a renamed constant cannot
@@ -33,6 +40,14 @@ const (
 // index.html has 4 <script> tags: the external xlsx-js-style bundle, two
 // classic inline scripts and one module.
 const wantScriptTags = 4
+
+// index.html has exactly one <style> tag; it carries the nonce too (style S1).
+const wantStyleTags = 1
+
+var styleOpenRE = regexp.MustCompile(`<style\b[^>]*>`)
+
+// 22-character nonce in the Report-Only style policy.
+var styleNonceRE = regexp.MustCompile(`^style-src 'nonce-([A-Za-z0-9+/]{22})'; style-src-attr 'none'$`)
 
 // 16 random bytes in raw standard base64 are exactly 22 characters.
 var cspNonceRE = regexp.MustCompile(`^script-src 'nonce-([A-Za-z0-9+/]{22})' `)
@@ -63,8 +78,8 @@ func TestCSPMarkerReplacedInResponse(t *testing.T) {
 	if strings.Contains(body, nonceMarkerText) {
 		t.Errorf("GET /: body still contains %s", nonceMarkerText)
 	}
-	if n := strings.Count(body, `nonce="`+nonce+`"`); n != wantScriptTags {
-		t.Errorf("GET /: %d tags carry the header nonce, want %d", n, wantScriptTags)
+	if n := strings.Count(body, `nonce="`+nonce+`"`); n != wantScriptTags+wantStyleTags {
+		t.Errorf("GET /: %d tags carry the header nonce, want %d", n, wantScriptTags+wantStyleTags)
 	}
 }
 
@@ -104,15 +119,55 @@ func TestCSPHeaderIsEnforcingWithExactPolicy(t *testing.T) {
 	}
 }
 
-// TestCSPIndexSendsOnlyTheEnforcingHeader does not use indexNonce, so a
-// missing enforcing header does not hide the Report-Only check.
-func TestCSPIndexSendsOnlyTheEnforcingHeader(t *testing.T) {
-	rec := getRoot(t, newMux(), "/", "")
-	if got := rec.Header().Get(enforcingHeader); got == "" {
-		t.Errorf("GET /: %s = %q, want a policy", enforcingHeader, got)
+// The enforcing policy is pinned as a full literal for one fixed nonce, so a
+// one-character change anywhere in csp.go fails here.
+func TestCSPEnforcingPolicyPinnedLiteral(t *testing.T) {
+	const want = "script-src 'nonce-AAAAAAAAAAAAAAAAAAAAAA' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+	if got := contentSecurityPolicy("AAAAAAAAAAAAAAAAAAAAAA"); got != want {
+		t.Errorf("contentSecurityPolicy = %q, want %q", got, want)
 	}
-	if got := rec.Header().Get(reportOnlyHeader); got != "" {
-		t.Errorf("GET /: %s = %q, want none: phase 2 is enforcing", reportOnlyHeader, got)
+}
+
+// TestCSPIndexSendsBothHeaders does not use indexNonce, so a missing enforcing
+// header does not hide the Report-Only check. Style S1: the Report-Only header
+// carries only the style policy, with the enforcing header's nonce.
+func TestCSPIndexSendsBothHeaders(t *testing.T) {
+	rec := getRoot(t, newMux(), "/", "")
+	enf := rec.Header().Get(enforcingHeader)
+	if enf == "" {
+		t.Errorf("GET /: %s = %q, want a policy", enforcingHeader, enf)
+	}
+	if n := len(rec.Header().Values(reportOnlyHeader)); n != 1 {
+		t.Errorf("GET /: %d %s headers, want 1", n, reportOnlyHeader)
+	}
+	ro := rec.Header().Get(reportOnlyHeader)
+	m := styleNonceRE.FindStringSubmatch(ro)
+	if m == nil {
+		t.Fatalf("GET /: %s = %q, want %q", reportOnlyHeader, ro, wantStylePolicy("<22-char nonce>"))
+	}
+	if want := wantStylePolicy(m[1]); ro != want {
+		t.Errorf("GET /: %s = %q, want %q", reportOnlyHeader, ro, want)
+	}
+	if e := cspNonceRE.FindStringSubmatch(enf); e == nil || e[1] != m[1] {
+		t.Errorf("GET /: Report-Only nonce %q differs from the enforcing header %q", m[1], enf)
+	}
+}
+
+// One nonce per response: enforcing header, Report-Only header and the served
+// <style> tag all carry it.
+func TestCSPStyleTagCarriesTheResponseNonce(t *testing.T) {
+	nonce, body, h := indexNonce(t)
+	if got, want := h.Get(reportOnlyHeader), wantStylePolicy(nonce); got != want {
+		t.Errorf("%s = %q, want %q", reportOnlyHeader, got, want)
+	}
+	tags := styleOpenRE.FindAllString(body, -1)
+	if len(tags) != wantStyleTags {
+		t.Errorf("GET /: %d <style> tags, want %d", len(tags), wantStyleTags)
+	}
+	for _, tag := range tags {
+		if !strings.Contains(tag, ` nonce="`+nonce+`"`) {
+			t.Errorf("GET /: tag %s does not carry the header nonce %q", tag, nonce)
+		}
 	}
 }
 
@@ -129,6 +184,18 @@ func TestCSPIndexFileMarksEveryScript(t *testing.T) {
 		if !strings.Contains(string(tag), ` nonce="`+nonceMarkerText+`"`) {
 			t.Errorf("index.html: tag %s has no nonce marker", tag)
 		}
+	}
+	styles := styleOpenRE.FindAll(data, -1)
+	if len(styles) != wantStyleTags {
+		t.Errorf("index.html: %d <style> tags, want %d", len(styles), wantStyleTags)
+	}
+	for _, tag := range styles {
+		if !strings.Contains(string(tag), ` nonce="`+nonceMarkerText+`"`) {
+			t.Errorf("index.html: tag %s has no nonce marker", tag)
+		}
+	}
+	if n := strings.Count(string(data), nonceMarkerText); n != wantScriptTags+wantStyleTags {
+		t.Errorf("index.html: %s appears %d times, want %d", nonceMarkerText, n, wantScriptTags+wantStyleTags)
 	}
 }
 

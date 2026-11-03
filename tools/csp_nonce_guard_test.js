@@ -8,7 +8,9 @@
 //   G1 no on*= attribute inside an HTML tag (script bodies stripped first);
 //   G2 no on*=" built inside a JS string literal in any inline script;
 //   G3 every <script tag carries nonce="__CSP_NONCE__" (index.html has 4:
-//      the xlsx-js-style bundle, two classic inline scripts and one module).
+//      the xlsx-js-style bundle, two classic inline scripts and one module);
+//   G4 every <style tag carries the marker too (style S1; index.html has 1);
+//   G5 the marker appears exactly 5 times (4 scripts + 1 style).
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -16,6 +18,8 @@ const path = require("path");
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8").replace(/\r\n/g, "\n");
 
 const WANT_SCRIPT_TAGS = 4;
+const WANT_STYLE_TAGS = 1;
+const WANT_MARKERS = 5;
 
 let ran = 0;
 let failed = 0;
@@ -46,6 +50,15 @@ const opens = [...html.matchAll(/<script\b[^>]*>/gi)].map((m) => m[0]);
 const missing = opens.filter((t) => !/\snonce="__CSP_NONCE__"/.test(t));
 check("G3 every <script tag has nonce=\"__CSP_NONCE__\" (" + (opens.length - missing.length) + "/" + opens.length + " tags, want " + WANT_SCRIPT_TAGS + "/" + WANT_SCRIPT_TAGS + ")", opens.length === WANT_SCRIPT_TAGS && missing.length === 0);
 for (const t of missing) console.log("      missing: " + t.slice(0, 80));
+
+// G4: every opening <style tag carries the marker.
+const styleOpens = [...html.matchAll(/<style\b[^>]*>/gi)].map((m) => m[0]);
+const styleNonced = styleOpens.filter((t) => /\snonce="__CSP_NONCE__"/.test(t));
+check("G4 every <style tag has nonce=\"__CSP_NONCE__\" (" + styleNonced.length + "/" + styleOpens.length + " tags, want " + WANT_STYLE_TAGS + "/" + WANT_STYLE_TAGS + ")", styleOpens.length === WANT_STYLE_TAGS && styleNonced.length === styleOpens.length);
+
+// G5: total marker count, so a new or removed marker fails loudly.
+const markers = html.split("__CSP_NONCE__").length - 1;
+check("G5 __CSP_NONCE__ appears " + markers + " times, want " + WANT_MARKERS, markers === WANT_MARKERS);
 
 if (ran === 0) {
   console.error("FAIL: zero checks ran - refusing to pass silently");
