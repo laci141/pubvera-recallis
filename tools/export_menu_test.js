@@ -98,7 +98,9 @@ for (let i = html.indexOf("document.addEventListener('keydown'"); i >= 0;
 if (modalKeys.length !== 1) refuse("exactly one document keydown listener that calls closeModal (" + modalKeys.length + " found)");
 const modalEsc = modalKeys[0];
 if (!modalEsc.src.includes("closeFlagPopover")) refuse("closeFlagPopover() in the modal keydown listener");
-const styleStart = html.indexOf("<style>");
+// With or without a nonce attribute (CSP style S1).
+const styleOpen = /<style\b[^>]*>/.exec(html);
+const styleStart = styleOpen ? styleOpen.index + styleOpen[0].length : -1;
 const styleEnd = html.indexOf("</style>");
 if (styleStart < 0 || styleEnd < styleStart) refuse("the <style> block");
 const style = html.slice(styleStart, styleEnd).replace(/\/\*[^]*?\*\//g, "");
