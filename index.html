@@ -586,6 +586,18 @@
       .result-table td, .result-table th { padding: 8px; }
       .result-table td.clip { max-width: 200px; }
     }
+    /* A Content-Security-Policy with style-src-attr 'none' blocks inline style
+       attributes, also in HTML built by script, so the former inline values
+       live in these classes. Each class is doubled (.x.x, specificity 0,2,0) so it
+       still wins over component rules such as .card p, as the inline style did.
+       Script that sets el.style.x keeps working under that policy. */
+    .firm-chip-row.firm-chip-row { margin-bottom: 4px; }
+    .recall-number-input.recall-number-input { font-family: monospace; }
+    .recall-na.recall-na { background:rgba(220,38,38,0.15);padding:2px 6px;border-radius:4px; }
+    .hl-mark.hl-mark { background:#d97706;color:#000;border-radius:2px;padding:0 2px; }
+    .negated-notice.negated-notice { font-size:0.78rem;color:#fcd34d;margin-top:10px; }
+    .table-hint.table-hint { font-size:0.75rem;color:#909090;margin-top:8px; }
+    .summary-box.summary-box { background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; margin-top: 16px; font-size: 0.9rem; line-height: 1.8; }
   </style>
 </head>
 <body>
@@ -642,7 +654,7 @@
         <button type="button" class="chip" data-action="prefill-check" data-arg="Naproxen">Naproxen</button>
       </div>
       <div class="chip-group-label">🏭 Major manufacturers</div>
-      <div class="hero-chips" style="margin-bottom: 4px;">
+      <div class="hero-chips firm-chip-row">
         <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Pfizer">Pfizer</button>
         <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Teva">Teva</button>
         <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Sandoz">Sandoz</button>
@@ -760,7 +772,7 @@
       <h2>By Recall Number</h2>
       <div class="form-group">
         <label>Recall Number (e.g., D-0617-2026)</label>
-        <input type="text" id="recallNumber" placeholder="FDA recall number" style="font-family: monospace;" />
+        <input type="text" id="recallNumber" placeholder="FDA recall number" class="recall-number-input" />
       </div>
       <button class="modal-btn" data-action="submit-reference">Lookup</button>
       <div id="referenceResult"></div>
@@ -851,7 +863,7 @@
     function recallCell(r, flags) {
       const num = r.recall_number || 'N/A';
       const extra = flags || '';
-      if (num === 'N/A') return `<td class="nowrap"><code style="background:rgba(220,38,38,0.15);padding:2px 6px;border-radius:4px;">N/A</code>${extra}</td>`;
+      if (num === 'N/A') return `<td class="nowrap"><code class="recall-na">N/A</code>${extra}</td>`;
       return `<td class="nowrap"><a class="recall-link" href="${recallSearchUrl(num, r.product_description)}" target="_blank" rel="noopener" title="Open full recall details in a new tab">${esc(num)}</a>${extra}</td>`;
     }
     function clipCell(text, highlightTerm) {
@@ -859,7 +871,7 @@
       let inner = esc(full);
       if (highlightTerm) {
         const re = new RegExp('(' + highlightTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
-        inner = inner.replace(re, '<mark style="background:#d97706;color:#000;border-radius:2px;padding:0 2px;">$1</mark>');
+        inner = inner.replace(re, '<mark class="hl-mark">$1</mark>');
       }
       return `<td class="clip" title="${escAttr(full)}">${inner}</td>`;
     }
@@ -1785,7 +1797,7 @@
     }
 
     function negatedNotice(word, negated, shown) {
-      return '<p style="font-size:0.78rem;color:#fcd34d;margin-top:10px;">⚠️ ' +
+      return '<p class="negated-notice">⚠️ ' +
         negatedNoticeText(esc(word), negated, shown) + '</p>';
     }
 
@@ -1820,7 +1832,7 @@
           html += '<tr data-idx="' + i + '">' + rowCommon(r, drug) + '</tr>';
         });
         html += '</table></div>';
-        html += '<p style="font-size:0.75rem;color:#909090;margin-top:8px;">💡 Click a recall number for full details · click a column header to sort · hover over Product/Reason for full text.</p>';
+        html += '<p class="table-hint">💡 Click a recall number for full details · click a column header to sort · hover over Product/Reason for full text.</p>';
         resultDiv.innerHTML = html;
         applyTableFilter(resultDiv);
       } catch (err) {
@@ -1850,7 +1862,7 @@
           html += '<tr data-idx="' + i + '">' + rowCommon(r, null) + '</tr>';
         });
         html += '</table></div>';
-        html += '<p style="font-size:0.75rem;color:#909090;margin-top:8px;">💡 Click a recall number for full details · click a column header to sort · hover over Product/Reason for full text.</p>';
+        html += '<p class="table-hint">💡 Click a recall number for full details · click a column header to sort · hover over Product/Reason for full text.</p>';
         resultDiv.innerHTML = html;
         applyTableFilter(resultDiv);
       } catch (err) {
@@ -1879,7 +1891,7 @@
           html += '<tr data-idx="' + i + '">' + rowCommon(r, null) + '</tr>';
         });
         html += '</table></div>';
-        html += '<p style="font-size:0.75rem;color:#909090;margin-top:8px;">💡 Click a recall number for full details · click a column header to sort · hover over Product/Reason for full text.</p>';
+        html += '<p class="table-hint">💡 Click a recall number for full details · click a column header to sort · hover over Product/Reason for full text.</p>';
         resultDiv.innerHTML = html;
         applyTableFilter(resultDiv);
       } catch (err) {
@@ -1909,7 +1921,7 @@
           lots = `<p><strong>Lots / Expiry:</strong> ${esc(rec.code_info)}</p>`;
         }
         let html = metaRow('Recall ' + esc(rec.recall_number), 'reference', 'recallis-recall.json', { noFilter: true });
-        html += '<div style="background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; margin-top: 16px; font-size: 0.9rem; line-height: 1.8;">';
+        html += '<div class="summary-box">';
         html += `<p><strong>Recall #:</strong> <code>${esc(rec.recall_number || 'N/A')}</code></p>`;
         html += `<p><strong>Classification:</strong> ${getClassBadge(rec.classification)}</p>`;
         html += `<p><strong>Status:</strong> ${esc(rec.status || 'N/A')}</p>`;
