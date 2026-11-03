@@ -10,7 +10,10 @@
 //   G3 every <script tag carries nonce="__CSP_NONCE__" (index.html has 4:
 //      the xlsx-js-style bundle, two classic inline scripts and one module);
 //   G4 every <style tag carries the marker too (style S1; index.html has 1);
-//   G5 the marker appears exactly 5 times (4 scripts + 1 style).
+//   G5 the marker appears exactly 5 times (4 scripts + 1 style);
+//   G6 no style= attribute anywhere, no <link rel=stylesheet> and no @import:
+//      the enforced policy (style S2: style-src 'nonce-N'; style-src-attr
+//      'none') would block each of them.
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -59,6 +62,14 @@ check("G4 every <style tag has nonce=\"__CSP_NONCE__\" (" + styleNonced.length +
 // G5: total marker count, so a new or removed marker fails loudly.
 const markers = html.split("__CSP_NONCE__").length - 1;
 check("G5 __CSP_NONCE__ appears " + markers + " times, want " + WANT_MARKERS, markers === WANT_MARKERS);
+
+// G6: style sources the enforced style policy would block.
+const styleAttrs = [...html.matchAll(/\sstyle\s*=/gi)].length;
+check("G6a no style= attribute (found " + styleAttrs + ")", styleAttrs === 0);
+const sheetLinks = [...html.matchAll(/<link\b[^>]*\brel\s*=\s*["']?[^"'>]*stylesheet/gi)].length;
+check("G6b no <link rel=stylesheet> (found " + sheetLinks + ")", sheetLinks === 0);
+const imports = [...html.matchAll(/@import\b/gi)].length;
+check("G6c no @import (found " + imports + ")", imports === 0);
 
 if (ran === 0) {
   console.error("FAIL: zero checks ran - refusing to pass silently");

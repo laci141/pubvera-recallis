@@ -13,18 +13,19 @@ import (
 
 // CSP phase 2: every <script> tag in index.html carries nonce="__CSP_NONCE__",
 // and each index response replaces that marker with a fresh nonce named in the
-// Content-Security-Policy header. Style S1: the one <style> tag carries the same
-// marker, and the style policy is sent as Content-Security-Policy-Report-Only. All requests go through newMux
+// Content-Security-Policy header. Style S2: the one <style> tag carries the same
+// marker, and the style policy is part of that one enforcing header; there is no
+// Content-Security-Policy-Report-Only header. All requests go through newMux
 // in-process (httptest), like root_cache_test.go.
 
 // wantPolicy is written out here rather than taken from contentSecurityPolicy,
 // so a change to any directive in csp.go fails a test.
 func wantPolicy(nonce string) string {
-	return "script-src 'nonce-" + nonce + "' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+	return "script-src 'nonce-" + nonce + "' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; " + wantStylePolicy(nonce) + "; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
 }
 
-// wantStylePolicy is the S1 Report-Only style policy, written out for the same
-// reason.
+// wantStylePolicy is the style part of the enforcing policy (S2), written out
+// for the same reason.
 func wantStylePolicy(nonce string) string {
 	return "style-src 'nonce-" + nonce + "'; style-src-attr 'none'"
 }
@@ -41,13 +42,13 @@ const (
 // classic inline scripts and one module.
 const wantScriptTags = 4
 
-// index.html has exactly one <style> tag; it carries the nonce too (style S1).
+// index.html has exactly one <style> tag; it carries the nonce too (style S1/S2).
 const wantStyleTags = 1
 
 var styleOpenRE = regexp.MustCompile(`<style\b[^>]*>`)
 
-// 22-character nonce in the Report-Only style policy.
-var styleNonceRE = regexp.MustCompile(`^style-src 'nonce-([A-Za-z0-9+/]{22})'; style-src-attr 'none'$`)
+// Both 22-character nonces of the enforcing policy: script-src and style-src.
+var bothNoncesRE = regexp.MustCompile(`^script-src 'nonce-([A-Za-z0-9+/]{22})' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; style-src 'nonce-([A-Za-z0-9+/]{22})'; style-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'$`)
 
 // 16 random bytes in raw standard base64 are exactly 22 characters.
 var cspNonceRE = regexp.MustCompile(`^script-src 'nonce-([A-Za-z0-9+/]{22})' `)
@@ -122,43 +123,41 @@ func TestCSPHeaderIsEnforcingWithExactPolicy(t *testing.T) {
 // The enforcing policy is pinned as a full literal for one fixed nonce, so a
 // one-character change anywhere in csp.go fails here.
 func TestCSPEnforcingPolicyPinnedLiteral(t *testing.T) {
-	const want = "script-src 'nonce-AAAAAAAAAAAAAAAAAAAAAA' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+	const want = "script-src 'nonce-AAAAAAAAAAAAAAAAAAAAAA' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; style-src 'nonce-AAAAAAAAAAAAAAAAAAAAAA'; style-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
 	if got := contentSecurityPolicy("AAAAAAAAAAAAAAAAAAAAAA"); got != want {
 		t.Errorf("contentSecurityPolicy = %q, want %q", got, want)
 	}
 }
 
-// TestCSPIndexSendsBothHeaders does not use indexNonce, so a missing enforcing
-// header does not hide the Report-Only check. Style S1: the Report-Only header
-// carries only the style policy, with the enforcing header's nonce.
-func TestCSPIndexSendsBothHeaders(t *testing.T) {
+// TestCSPIndexSendsOneEnforcingHeader replaces S1's TestCSPIndexSendsBothHeaders
+// on purpose: S1 required a Report-Only style header, S2 forbids it. It does not
+// use indexNonce, so a missing enforcing header does not hide the Report-Only
+// check. Header().Set keeps only the last value, so two Set calls on one name
+// would silently drop a policy; exactly one value is required.
+func TestCSPIndexSendsOneEnforcingHeader(t *testing.T) {
 	rec := getRoot(t, newMux(), "/", "")
-	enf := rec.Header().Get(enforcingHeader)
-	if enf == "" {
-		t.Errorf("GET /: %s = %q, want a policy", enforcingHeader, enf)
+	if n := len(rec.Header().Values(enforcingHeader)); n != 1 {
+		t.Errorf("GET /: %d %s headers, want 1", n, enforcingHeader)
 	}
-	if n := len(rec.Header().Values(reportOnlyHeader)); n != 1 {
-		t.Errorf("GET /: %d %s headers, want 1", n, reportOnlyHeader)
-	}
-	ro := rec.Header().Get(reportOnlyHeader)
-	m := styleNonceRE.FindStringSubmatch(ro)
-	if m == nil {
-		t.Fatalf("GET /: %s = %q, want %q", reportOnlyHeader, ro, wantStylePolicy("<22-char nonce>"))
-	}
-	if want := wantStylePolicy(m[1]); ro != want {
-		t.Errorf("GET /: %s = %q, want %q", reportOnlyHeader, ro, want)
-	}
-	if e := cspNonceRE.FindStringSubmatch(enf); e == nil || e[1] != m[1] {
-		t.Errorf("GET /: Report-Only nonce %q differs from the enforcing header %q", m[1], enf)
+	if n := len(rec.Header().Values(reportOnlyHeader)); n != 0 {
+		t.Errorf("GET /: %d %s headers %q, want none: style S2 is enforcing", n, reportOnlyHeader, rec.Header().Values(reportOnlyHeader))
 	}
 }
 
-// One nonce per response: enforcing header, Report-Only header and the served
-// <style> tag all carry it.
+// One nonce per response: the script-src nonce, the style-src nonce and the
+// served <style> tag all carry it.
 func TestCSPStyleTagCarriesTheResponseNonce(t *testing.T) {
 	nonce, body, h := indexNonce(t)
-	if got, want := h.Get(reportOnlyHeader), wantStylePolicy(nonce); got != want {
-		t.Errorf("%s = %q, want %q", reportOnlyHeader, got, want)
+	enf := h.Get(enforcingHeader)
+	m := bothNoncesRE.FindStringSubmatch(enf)
+	if m == nil {
+		t.Fatalf("GET /: %s = %q, want %q", enforcingHeader, enf, wantPolicy("<22-char nonce>"))
+	}
+	if m[1] != nonce || m[2] != nonce {
+		t.Errorf("GET /: script nonce %q, style nonce %q, want both %q", m[1], m[2], nonce)
+	}
+	if !strings.Contains(enf, "; "+wantStylePolicy(nonce)+"; ") {
+		t.Errorf("GET /: %s = %q does not contain %q", enforcingHeader, enf, wantStylePolicy(nonce))
 	}
 	tags := styleOpenRE.FindAllString(body, -1)
 	if len(tags) != wantStyleTags {
