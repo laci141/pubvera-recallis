@@ -95,6 +95,7 @@ func newMux() *http.ServeMux {
 	mux.HandleFunc("/healthz", handleHealthz)
 	mux.HandleFunc("/version", handleVersion)
 	mux.HandleFunc("/readyz", handleReadyz)
+	mux.HandleFunc("/csp-report", handleCSPReport)
 	mux.HandleFunc("/", handleRoot)
 	return mux
 }
@@ -120,12 +121,9 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 		// A missing variable is not an error. An empty pair with status 200 is a
 		// valid answer that puts the page into unauthenticated mode, which is what
 		// keeps local development and the current deployment working until the
-		// environment is set.
-		supaURL := strings.TrimSpace(os.Getenv("SUPABASE_URL"))
-		supaKey := strings.TrimSpace(os.Getenv("SUPABASE_PUBLISHABLE_KEY"))
-		if supaURL == "" || supaKey == "" {
-			supaURL, supaKey = "", ""
-		}
+		// environment is set. supabaseConfig (csp_report.go) is also what the
+		// index response's connect-src uses, so the two cannot disagree.
+		supaURL, supaKey, _ := supabaseConfig()
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		// Never cache: a stale key surviving a key rotation would be hard to
 		// diagnose from the browser side.
@@ -155,6 +153,11 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 		// copy cannot replay one nonce to every visitor.
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set(cspHeaderName, contentSecurityPolicy(nonce))
+		// connect-src PR A: Report-Only, so nothing new is blocked; violations
+		// are reported to POST /csp-report (csp_report.go).
+		_, _, supaOrigin := supabaseConfig()
+		w.Header().Set("Content-Security-Policy-Report-Only", reportOnlyConnectSrc(supaOrigin))
+		w.Header().Set("Reporting-Endpoints", `csp="/csp-report"`)
 		_, _ = w.Write(data)
 	default:
 		http.NotFound(w, r)
