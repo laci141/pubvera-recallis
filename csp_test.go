@@ -14,9 +14,9 @@ import (
 // CSP phase 2: every <script> tag in index.html carries nonce="__CSP_NONCE__",
 // and each index response replaces that marker with a fresh nonce named in the
 // Content-Security-Policy header. Style S2: the one <style> tag carries the same
-// marker, and the style policy is part of that one enforcing header; there is no
-// Content-Security-Policy-Report-Only header. All requests go through newMux
-// in-process (httptest), like root_cache_test.go.
+// marker, and the style policy is part of that one enforcing header. The only
+// Content-Security-Policy-Report-Only header is connect-src (csp_report.go). All
+// requests go through newMux in-process (httptest), like root_cache_test.go.
 
 // wantPolicy is written out here rather than taken from contentSecurityPolicy,
 // so a change to any directive in csp.go fails a test.
@@ -130,17 +130,23 @@ func TestCSPEnforcingPolicyPinnedLiteral(t *testing.T) {
 }
 
 // TestCSPIndexSendsOneEnforcingHeader replaces S1's TestCSPIndexSendsBothHeaders
-// on purpose: S1 required a Report-Only style header, S2 forbids it. It does not
-// use indexNonce, so a missing enforcing header does not hide the Report-Only
-// check. Header().Set keeps only the last value, so two Set calls on one name
-// would silently drop a policy; exactly one value is required.
+// on purpose: S1 required a Report-Only style header, S2 forbids it. connect-src
+// PR A brings a Report-Only header back, for connect-src only: exactly the value
+// of reportOnlyConnectSrc for the test environment. It does not use indexNonce,
+// so a missing enforcing header does not hide the Report-Only check.
+// Header().Set keeps only the last value, so two Set calls on one name would
+// silently drop a policy; exactly one value is required.
 func TestCSPIndexSendsOneEnforcingHeader(t *testing.T) {
+	_, _, origin := supabaseConfig()
 	rec := getRoot(t, newMux(), "/", "")
 	if n := len(rec.Header().Values(enforcingHeader)); n != 1 {
 		t.Errorf("GET /: %d %s headers, want 1", n, enforcingHeader)
 	}
-	if n := len(rec.Header().Values(reportOnlyHeader)); n != 0 {
-		t.Errorf("GET /: %d %s headers %q, want none: style S2 is enforcing", n, reportOnlyHeader, rec.Header().Values(reportOnlyHeader))
+	if got := rec.Header().Values(reportOnlyHeader); len(got) != 1 || got[0] != reportOnlyConnectSrc(origin) {
+		t.Errorf("GET /: %s headers %q, want exactly [%q]", reportOnlyHeader, got, reportOnlyConnectSrc(origin))
+	}
+	if enf := rec.Header().Get(enforcingHeader); !bothNoncesRE.MatchString(enf) {
+		t.Errorf("GET /: %s = %q, want the unchanged enforcing policy", enforcingHeader, enf)
 	}
 }
 
