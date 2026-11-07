@@ -293,6 +293,7 @@ jobs:
         with:
           name: recallis-image
           if-no-files-found: error
+          retention-days: 1
           path: |
             ${{ runner.temp }}/recallis-image.tar
             ${{ runner.temp }}/iid.txt
