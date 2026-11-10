@@ -48,7 +48,9 @@ WORKDIR /app
 
 # The unprivileged user the server runs as (see USER below). UID 10001 is the
 # same as the other Pubvera apps. adduser -D also creates /home/app.
-RUN apk add --no-cache ca-certificates wget && adduser -D -u 10001 app
+# zlib is upgraded by name for CVE-2026-4738 (1.3.2-r1 -> 1.4-r0, Grype
+# --only-fixed); a bare apk upgrade would pull in every package.
+RUN apk add --no-cache ca-certificates wget && apk upgrade --no-cache zlib && adduser -D -u 10001 app
 
 COPY --from=web-builder /out/server ./server
 COPY --from=web-builder /out/index.html ./index.html
