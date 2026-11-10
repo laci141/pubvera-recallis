@@ -1813,7 +1813,7 @@
       try {
         const data = await callApi('/api/check', { drug, class: cls || undefined }, resultDiv);
         if (!data.results || data.results.length === 0) {
-          resultDiv.innerHTML = '<div class="empty-state">✅ No active recalls found for this drug. That\'s good news!</div>';
+          resultDiv.innerHTML = '<div class="empty-state">No recall records were returned for this query. An empty result does not prove there are no recalls, or that the data is complete or current.</div>';
           return;
         }
         lastData.check = data.results.map(mapRecall);

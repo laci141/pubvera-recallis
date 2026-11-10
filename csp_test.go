@@ -22,7 +22,7 @@ import (
 // wantPolicy is written out here rather than taken from contentSecurityPolicy,
 // so a change to any directive in csp.go fails a test.
 func wantPolicy(nonce string) string {
-	return "script-src 'nonce-" + nonce + "' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; " + wantStylePolicy(nonce) + "; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+	return "script-src 'nonce-" + nonce + "' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; " + wantStylePolicy(nonce) + "; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; default-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'"
 }
 
 // wantNoSupabaseTail is the connect-src tail of the enforcing header when no
@@ -53,7 +53,7 @@ const wantStyleTags = 1
 var styleOpenRE = regexp.MustCompile(`<style\b[^>]*>`)
 
 // Both 22-character nonces of the enforcing policy: script-src and style-src.
-var bothNoncesRE = regexp.MustCompile(`^script-src 'nonce-([A-Za-z0-9+/]{22})' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; style-src 'nonce-([A-Za-z0-9+/]{22})'; style-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; connect-src 'self'(?: https://[A-Za-z0-9.:-]+)?; report-to csp; report-uri /csp-report$`)
+var bothNoncesRE = regexp.MustCompile(`^script-src 'nonce-([A-Za-z0-9+/]{22})' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; style-src 'nonce-([A-Za-z0-9+/]{22})'; style-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; default-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; connect-src 'self'(?: https://[A-Za-z0-9.:-]+)?; report-to csp; report-uri /csp-report$`)
 
 // 16 random bytes in raw standard base64 are exactly 22 characters.
 var cspNonceRE = regexp.MustCompile(`^script-src 'nonce-([A-Za-z0-9+/]{22})' `)
@@ -130,7 +130,7 @@ func TestCSPHeaderIsEnforcingWithExactPolicy(t *testing.T) {
 // The enforcing policy is pinned as a full literal for one fixed nonce, so a
 // one-character change anywhere in csp.go fails here.
 func TestCSPEnforcingPolicyPinnedLiteral(t *testing.T) {
-	const want = "script-src 'nonce-AAAAAAAAAAAAAAAAAAAAAA' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; style-src 'nonce-AAAAAAAAAAAAAAAAAAAAAA'; style-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+	const want = "script-src 'nonce-AAAAAAAAAAAAAAAAAAAAAA' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; style-src 'nonce-AAAAAAAAAAAAAAAAAAAAAA'; style-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; default-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'"
 	if got := contentSecurityPolicy("AAAAAAAAAAAAAAAAAAAAAA"); got != want {
 		t.Errorf("contentSecurityPolicy = %q, want %q", got, want)
 	}

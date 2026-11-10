@@ -12,6 +12,10 @@ import (
 	"testing"
 )
 
+// The stubs in the tests are steered by STUB_* and CONC_STUB_* variables; the
+// child env allowlist (cliEnv) passes them through only in tests.
+func init() { cliEnvTestPrefixes = []string{"STUB_", "CONC_STUB_"} }
+
 // testKey is a placeholder, never a real credential.
 const testKey = "TESTKEY123"
 
@@ -45,7 +49,8 @@ func envValue(env []string, name string) (string, bool) {
 
 // buildKeyStubCLI compiles a child CLI that records what it was started with.
 //   - STUB_DUMP: path of a file that receives argv and every *_BASE_URL and
-//     DRUG_ENFORCEMENT_CONFIG variable, one per line.
+//     DRUG_ENFORCEMENT_CONFIG variable, one per line, then the whole
+//     environment as "ALL name=value" lines.
 //   - STUB_STDERR: text written to stderr.
 //   - STUB_EXIT: "1" makes the stub exit non-zero after writing stderr.
 //
@@ -71,6 +76,7 @@ func main() {
 			if strings.HasSuffix(strings.ToUpper(k), "BASE_URL") || strings.EqualFold(k, "DRUG_ENFORCEMENT_CONFIG") {
 				b.WriteString("ENV " + kv + "\n")
 			}
+			b.WriteString("ALL " + kv + "\n")
 		}
 		os.WriteFile(p, []byte(b.String()), 0o600)
 	}
@@ -253,5 +259,50 @@ func TestOpenFDAKeyUnset_HandlersUnchanged(t *testing.T) {
 	newMux().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 	if rec.Code != http.StatusOK {
 		t.Errorf("/healthz = %d", rec.Code)
+	}
+}
+
+// RV-SEC-01: the child gets an allowlisted environment, never ours. Neither the
+// key (raw or base64) nor an unrelated secret may reach it, with or without a
+// key; DRUG_ENFORCEMENT_CONFIG is present only when a key is set.
+func TestRunCLI_ChildEnvAllowlist(t *testing.T) {
+	const key = "testkey-1234567890"
+	for _, tc := range []struct {
+		name string
+		key  string
+	}{{"key set", key}, {"keyless", ""}} {
+		t.Run(tc.name, func(t *testing.T) {
+			buildKeyStubCLI(t)
+			dump := filepath.Join(t.TempDir(), "dump.txt")
+			t.Setenv("STUB_DUMP", dump)
+			t.Setenv("OPENFDA_API_KEY", key)
+			t.Setenv("FOO_SECRET", "x")
+			withOpenFDAKey(t, tc.key)
+
+			code, _, _ := postCheck(t, "aspirin")
+			if code != http.StatusOK {
+				t.Fatalf("status = %d, want 200", code)
+			}
+			raw, err := os.ReadFile(dump)
+			if err != nil {
+				t.Fatalf("stub did not write its dump: %v", err)
+			}
+			got := string(raw)
+			for _, bad := range []string{
+				key,
+				base64.StdEncoding.EncodeToString([]byte(key + ":")),
+				base64.StdEncoding.EncodeToString([]byte(key)),
+				"ALL OPENFDA_API_KEY=",
+				"ALL FOO_SECRET=",
+			} {
+				if strings.Contains(strings.ToUpper(got), strings.ToUpper(bad)) {
+					t.Errorf("child env contains %q:\n%s", bad, got)
+				}
+			}
+			hasConfig := strings.Contains(got, "ALL DRUG_ENFORCEMENT_CONFIG=")
+			if hasConfig != (tc.key != "") {
+				t.Errorf("DRUG_ENFORCEMENT_CONFIG present = %v, want %v:\n%s", hasConfig, tc.key != "", got)
+			}
+		})
 	}
 }
