@@ -23,8 +23,11 @@ var nonceRandRead = rand.Read
 // https: are the backward-compatibility fallback for browsers that predate
 // nonces and 'strict-dynamic'; browsers that understand nonce plus
 // 'strict-dynamic' (Chrome 52+, Firefox 52+, Safari 15.4+) ignore both.
+// default-src, img-src, font-src and form-action (RV-SEC-03) close the fetch
+// types the policy left open; the page loads images only from itself or as
+// data: URLs, no web fonts, and submits no form anywhere else.
 func contentSecurityPolicy(nonce string) string {
-	return "script-src 'nonce-" + nonce + "' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; " + styleSecurityPolicy(nonce) + "; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+	return "script-src 'nonce-" + nonce + "' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; " + styleSecurityPolicy(nonce) + "; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; default-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'"
 }
 
 // styleSecurityPolicy is the style part of the index page policy (S2, enforced).

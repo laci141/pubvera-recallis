@@ -45,7 +45,7 @@ Other routes:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PORT` | `8094` | Listen port (binds `0.0.0.0`) |
+| `PORT` | `8094` | Listen port. The Go process binds `0.0.0.0` inside the container; the host publishes it on `127.0.0.1:8094` only |
 | `CLI_BIN` | `./drug-enforcement-pp-cli` | Path to the CLI binary (`/app/drug-enforcement-pp-cli` in the image) |
 | `CLI_MAX_CONCURRENT` | `4` | Max CLI child processes at once; `0` or negative disables the bound (logged) |
 | `OPENFDA_API_KEY` | — | Optional openFDA API key (see below); never logged |
@@ -99,8 +99,9 @@ CLI_BIN=<path-to-cli> PORT=8094 go run .
   build, vet, gofmt, race tests, govulncheck, and a Docker build.
 - Pull requests only build; pushes to `main` publish the image to GHCR.
 - On the server, Watchtower pulls the new image automatically.
-- The container listens on `127.0.0.1:8094` only; Caddy terminates HTTPS in
-  front of it.
+- The Go process binds `0.0.0.0` inside the container; the host publishes it
+  on `127.0.0.1:8094` only (measured on the server 2026-11-10). Caddy
+  terminates HTTPS in front of it.
 
 Verify a deploy on the server:
 

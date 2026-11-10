@@ -273,13 +273,13 @@ func checkIndexHeaders(t *testing.T, want string) {
 func TestIndexEnforcesConnectSrcWithSupabase(t *testing.T) {
 	t.Setenv("SUPABASE_URL", "https://abc.supabase.co")
 	t.Setenv("SUPABASE_PUBLISHABLE_KEY", "pk_test_123")
-	checkIndexHeaders(t, "script-src 'nonce-NONCE' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; style-src 'nonce-NONCE'; style-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; connect-src 'self' https://abc.supabase.co; report-to csp; report-uri /csp-report")
+	checkIndexHeaders(t, "script-src 'nonce-NONCE' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; style-src 'nonce-NONCE'; style-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; default-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; connect-src 'self' https://abc.supabase.co; report-to csp; report-uri /csp-report")
 }
 
 func TestIndexEnforcesConnectSrcWithoutSupabase(t *testing.T) {
 	t.Setenv("SUPABASE_URL", "")
 	t.Setenv("SUPABASE_PUBLISHABLE_KEY", "")
-	checkIndexHeaders(t, "script-src 'nonce-NONCE' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; style-src 'nonce-NONCE'; style-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; connect-src 'self'; report-to csp; report-uri /csp-report")
+	checkIndexHeaders(t, "script-src 'nonce-NONCE' 'strict-dynamic' https: 'unsafe-inline'; script-src-attr 'none'; style-src 'nonce-NONCE'; style-src-attr 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; default-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; connect-src 'self'; report-to csp; report-uri /csp-report")
 }
 
 // The page connects to the URL /config.json hands it; the header must allow
@@ -287,9 +287,9 @@ func TestIndexEnforcesConnectSrcWithoutSupabase(t *testing.T) {
 // handler reading the environment on its own would disagree.
 func TestConfigJSONAgreesWithEnforcingHeader(t *testing.T) {
 	for _, tc := range []struct{ envURL, envKey, wantOrigin, wantTail string }{
-		{" https://abc.supabase.co ", " pk_test_123 ", "https://abc.supabase.co", "; frame-ancestors 'none'; connect-src 'self' https://abc.supabase.co; report-to csp; report-uri /csp-report"},
-		{"https://abc.supabase.co", "", "", "; frame-ancestors 'none'; connect-src 'self'; report-to csp; report-uri /csp-report"},
-		{"", "", "", "; frame-ancestors 'none'; connect-src 'self'; report-to csp; report-uri /csp-report"},
+		{" https://abc.supabase.co ", " pk_test_123 ", "https://abc.supabase.co", "; frame-ancestors 'none'; default-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; connect-src 'self' https://abc.supabase.co; report-to csp; report-uri /csp-report"},
+		{"https://abc.supabase.co", "", "", "; frame-ancestors 'none'; default-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; connect-src 'self'; report-to csp; report-uri /csp-report"},
+		{"", "", "", "; frame-ancestors 'none'; default-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; connect-src 'self'; report-to csp; report-uri /csp-report"},
 	} {
 		t.Setenv("SUPABASE_URL", tc.envURL)
 		t.Setenv("SUPABASE_PUBLISHABLE_KEY", tc.envKey)

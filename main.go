@@ -272,16 +272,51 @@ func initOpenFDAKey(key string) (cleanup func(), err error) {
 	}, nil
 }
 
-// cliEnv is the child's environment. With no key it is nil, which makes the
-// child inherit ours exactly as before. With a key it is ours plus the config
-// path; exec keeps the last of duplicate names, so this overrides an inherited
-// DRUG_ENFORCEMENT_CONFIG.
+// cliEnvNames are the parent variables the child may see. Anything else,
+// OPENFDA_API_KEY included, stays in this process.
+var cliEnvNames = []string{"PATH", "HOME", "TMPDIR", "TZ", "LANG", "SSL_CERT_FILE", "SSL_CERT_DIR"}
+
+// cliEnvTestPrefixes lets tests pass their stub-control variables through. It
+// is empty in production and set only from a _test.go file.
+var cliEnvTestPrefixes []string
+
+// cliEnv is the child's environment. It is never nil (nil would make exec
+// inherit our whole environment) and never os.Environ(): it holds only the
+// names in cliEnvNames and names starting with DRUG_ENFORCEMENT_, copied from
+// ours. With a key set, DRUG_ENFORCEMENT_CONFIG=<config path> is appended;
+// exec keeps the last of duplicate names, so it overrides an inherited one.
 func cliEnv() []string {
-	st := openFDA.Load()
-	if st == nil {
-		return nil
+	env := []string{}
+	for _, kv := range os.Environ() {
+		name, _, ok := strings.Cut(kv, "=")
+		if !ok || name == "" {
+			continue
+		}
+		if cliEnvAllowed(name) {
+			env = append(env, kv)
+		}
 	}
-	return append(os.Environ(), "DRUG_ENFORCEMENT_CONFIG="+st.configPath)
+	if st := openFDA.Load(); st != nil {
+		env = append(env, "DRUG_ENFORCEMENT_CONFIG="+st.configPath)
+	}
+	return env
+}
+
+func cliEnvAllowed(name string) bool {
+	if strings.HasPrefix(name, "DRUG_ENFORCEMENT_") {
+		return true
+	}
+	for _, n := range cliEnvNames {
+		if strings.EqualFold(name, n) {
+			return true
+		}
+	}
+	for _, p := range cliEnvTestPrefixes {
+		if strings.HasPrefix(name, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // redactKey replaces the key and its encoded forms in text with [REDACTED]. The
