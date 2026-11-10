@@ -255,6 +255,81 @@ jobs:
           fi
           echo "PID 1 runs as non-root"
 
+      # The source-mode scan above covers this module only. The image also ships
+      # the drug-enforcement CLI, built from a pinned upstream commit, which no
+      # step scanned. Both binaries are copied out of the image that was just
+      # checked, so the scans below judge exactly what ships.
+      - name: Extract binaries from the image
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bins"
+          cid=$(docker create recallis-label-check:ci)
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid:/app/drug-enforcement-pp-cli" "$RUNNER_TEMP/bins/drug-enforcement-pp-cli"
+          docker cp "$cid:/app/server" "$RUNNER_TEMP/bins/server"
+          ls -l "$RUNNER_TEMP/bins"
+
+      # The CLI must say it was built from the commit pinned in the Dockerfile.
+      # go install @<commit> stamps the main module with a pseudo-version whose
+      # last part is the first 12 characters of that commit.
+      - name: Check the CLI build identity
+        run: |
+          set -euo pipefail
+          expected=$(sed -n 's/^ARG PP_LIBRARY_COMMIT=//p' Dockerfile)
+          prefix="${expected:0:12}"
+          go version -m "$RUNNER_TEMP/bins/drug-enforcement-pp-cli"
+          modver=$(go version -m "$RUNNER_TEMP/bins/drug-enforcement-pp-cli" | awk '$1 == "mod" {print $3; exit}')
+          echo "expected prefix: ${prefix}"
+          echo "main module:     ${modver}"
+          if [ ${#prefix} -ne 12 ] || [[ "$modver" != *"$prefix"* ]]; then
+            echo "CLI main module version does not contain the pinned PP_LIBRARY_COMMIT prefix"
+            exit 1
+          fi
+          echo "CLI was built from the pinned commit"
+
+      # Separate steps, so a finding names the binary it is in. Same pinned
+      # GOVULNCHECK_VERSION as the source scan.
+      - name: Vulnerability scan (CLI binary)
+        run: |
+          set -euo pipefail
+          go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
+          govulncheck -mode=binary "$RUNNER_TEMP/bins/drug-enforcement-pp-cli"
+
+      - name: Vulnerability scan (server binary)
+        run: |
+          set -euo pipefail
+          go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
+          govulncheck -mode=binary "$RUNNER_TEMP/bins/server"
+
+      # SPDX SBOM of the image as built. The action's own uploads are off; the
+      # file is uploaded below with the same pinned upload-artifact as the image.
+      - name: Generate SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: recallis-label-check:ci
+          format: spdx-json
+          output-file: ${{ runner.temp }}/recallis-sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: recallis-sbom
+          if-no-files-found: error
+          path: ${{ runner.temp }}/recallis-sbom.spdx.json
+
+      # Base system packages and every binary in the image. Fails only on high
+      # or critical findings that have a fix available, so an unfixable entry
+      # does not block a deploy that cannot do anything about it.
+      - name: Scan the image
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: recallis-label-check:ci
+          fail-build: true
+          severity-cutoff: high
+          only-fixed: true
+
       # The image is built once and exported as a tar, never pushed from here:
       # this job has no registry login and a read-only token. The tags are the
       # final GHCR names, so docker load in the publish job restores them as
