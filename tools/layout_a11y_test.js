@@ -74,6 +74,20 @@ check("7 mobile collapse uses max-height + overflow: hidden on .hero-chips:not(.
   /\.hero-chips:not\(\.chips-open\) \{[^}]*max-height:[^}]*overflow: hidden/.test(m768));
 check("7 toggleChips toggles .chips-open and sets aria-expanded + Show less", /classList\.toggle\('chips-open'\)/.test(html) &&
   /setAttribute\('aria-expanded'/.test(html) && /'Show less'/.test(html));
+// 13 collapsed chips leave the Tab order (inert), restored on Show all / desktop
+const sci = (/\n    function syncChipInert\(group\) \{[^]*?\n    \}\n/.exec(html) || [""])[0];
+check("13 syncChipInert(group) exists", sci !== "");
+check("13 syncChipInert: phone (<= 768px) and not .chips-open -> inert below the visible bottom, else removed",
+  /matchMedia\('\(max-width: 768px\)'\)\.matches/.test(sci) && /classList\.contains\('chips-open'\)/.test(sci) &&
+  /getBoundingClientRect\(\)\.bottom/.test(sci) && /toggleAttribute\('inert'/.test(sci));
+const tc = (/\n    function toggleChips\(btn\) \{[^]*?\n    \}\n/.exec(html) || [""])[0];
+check("13 toggleChips calls syncChipInert", /syncChipInert\(/.test(tc));
+check("13 syncChipInert runs on load for both groups, on matchMedia change and on a debounced resize",
+  /\['drugChips', 'firmChips'\]\.forEach\(\(id\) => syncChipInert\(document\.getElementById\(id\)\)\)/.test(html) &&
+  /matchMedia\('\(max-width: 768px\)'\)\.addEventListener\('change'/.test(html) &&
+  /addEventListener\('resize'[^]{0,200}clearTimeout[^]{0,200}setTimeout/.test(html));
+check("13 focus on a chip that turns inert moves to the group's Show all button",
+  /document\.activeElement/.test(sci) && /aria-controls="' \+ group\.id \+ '"\][^]{0,40}\.focus\(\)/.test(sci));
 // 8 modal markup
 const MODALS = ["checkModal", "firmModal", "recentModal", "referenceModal"];
 for (const id of MODALS) {
