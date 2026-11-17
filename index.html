@@ -876,10 +876,34 @@
     document.addEventListener('keydown', (e) => { trapModalTab(e); });
     // Phone chip groups: "Show all" / "Show less" toggles .chips-open.
     function toggleChips(btn) {
-      const open = document.getElementById(btn.getAttribute('aria-controls')).classList.toggle('chips-open');
+      const group = document.getElementById(btn.getAttribute('aria-controls'));
+      const open = group.classList.toggle('chips-open');
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
       btn.textContent = open ? 'Show less' : 'Show all';
+      syncChipInert(group);
     }
+    // A collapsed phone group clips its lower chips; inert keeps them out of the
+    // Tab order. A focused chip that turns inert hands focus to Show all.
+    function syncChipInert(group) {
+      const collapsed = window.matchMedia('(max-width: 768px)').matches && !group.classList.contains('chips-open');
+      if (collapsed) group.scrollTop = 0;
+      const top = group.getBoundingClientRect().top;
+      let refocus = false;
+      group.querySelectorAll('.chip').forEach((c) => {
+        const hide = collapsed && c.getBoundingClientRect().bottom - top > group.clientHeight + 1;
+        if (hide && c === document.activeElement) refocus = true;
+        c.toggleAttribute('inert', hide);
+      });
+      if (refocus) document.querySelector('[aria-controls="' + group.id + '"]').focus();
+    }
+    function syncAllChips() {
+      ['drugChips', 'firmChips'].forEach((id) => syncChipInert(document.getElementById(id)));
+    }
+    syncAllChips();
+    window.addEventListener('load', syncAllChips);
+    window.matchMedia('(max-width: 768px)').addEventListener('change', syncAllChips);
+    let chipResizeTimer = 0;
+    window.addEventListener('resize', () => { clearTimeout(chipResizeTimer); chipResizeTimer = setTimeout(syncAllChips, 150); });
     function widen(contentId) {
       document.getElementById(contentId).classList.add('wide');
     }
