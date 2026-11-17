@@ -210,7 +210,7 @@
     .chip.firm-chip:focus-visible { outline: 2px solid rgb(234, 88, 12); outline-offset: 2px; }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 20px;
       margin-bottom: 40px;
     }
@@ -222,13 +222,13 @@
       border-radius: 16px;
       padding: 24px;
       transition: all 0.3s ease;
-      cursor: pointer;
+      display: flex;
+      flex-direction: column;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 30px rgba(220, 38, 38, 0.08), 0 8px 32px rgba(0, 0, 0, 0.3);
     }
     .card:hover {
       background: rgba(255, 255, 255, 0.11);
       border-color: rgba(255, 255, 255, 0.3);
-      transform: translateY(-4px);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 0 40px rgba(220, 38, 38, 0.12), 0 12px 48px rgba(0, 0, 0, 0.4);
     }
     .card.red-accent { border-top: 3px solid #dc2626; }
@@ -240,6 +240,7 @@
     .card p { font-size: 0.9rem; color: #a0a0a0; margin-bottom: 16px; line-height: 1.5; }
     .card-btn {
       width: 100%;
+      margin-top: auto;
       padding: 10px;
       background: linear-gradient(135deg, #dc2626, #ea580c);
       border: none;
@@ -280,7 +281,9 @@
     .modal-content.wide { max-width: 1080px; }
     .modal-close {
       position: absolute;
-      top: 15px; right: 15px;
+      top: 6px; right: 6px;
+      min-width: 44px; min-height: 44px;
+      display: flex; align-items: center; justify-content: center;
       background: none;
       border: none;
       color: #fff;
@@ -309,7 +312,7 @@
     }
     .form-group select option { background: #1a1420; }
     .slider-label { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem; }
-    input[type="range"] { width: 100%; cursor: pointer; }
+    input[type="range"] { width: 100%; cursor: pointer; accent-color: #ea580c; }
     .modal-btn {
       width: 100%;
       padding: 12px;
@@ -498,7 +501,9 @@
     .footer {
       text-align: center;
       padding: 40px 20px;
-      margin-top: 60px;
+      max-width: 1160px;
+      width: calc(100% - 40px);
+      margin: 60px auto 0;
       border-top: 1px solid rgba(220, 38, 38, 0.3);
       background: rgba(220, 38, 38, 0.08);
       backdrop-filter: blur(10px);
@@ -508,6 +513,7 @@
     .footer-main { font-size: 0.85rem; color: #707070; }
     .disclaimer-panel {
       max-width: 1160px;
+      width: calc(100% - 40px);
       margin: 50px auto 0;
       padding: 20px 24px;
       background: rgba(220, 38, 38, 0.08);
@@ -598,6 +604,31 @@
     .negated-notice.negated-notice { font-size:0.78rem;color:#fcd34d;margin-top:10px; }
     .table-hint.table-hint { font-size:0.75rem;color:#909090;margin-top:8px; }
     .summary-box.summary-box { background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; margin-top: 16px; font-size: 0.9rem; line-height: 1.8; }
+    /* Card grid: 4 columns from 1200px, 2x2 from 769 to 1199px, 1 column on a
+       phone, so no card is ever alone on a row. */
+    @media (max-width: 1199px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    /* Chip groups: on a phone each shows two rows until "Show all" adds
+       .chips-open. Two rows = 2 x (1.2 x 0.77rem line + 12px padding + 2px
+       border) + the 7px gap, plus 1px slack. Desktop: every chip, no button. */
+    .chip-toggle { display: none; }
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: minmax(0, 1fr); }
+      .disclaimer-panel, .footer { width: auto; }
+      .hero-chips .chip { line-height: 1.2; }
+      .hero-chips:not(.chips-open) { max-height: calc(2 * (0.924rem + 14px) + 8px); overflow: hidden; }
+      .chip-toggle {
+        display: block; margin: -6px auto 16px; min-height: 32px; padding: 6px 14px;
+        font: inherit; font-size: 0.75rem; color: #e0e0e0; cursor: pointer;
+        background: none; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 999px;
+      }
+      .chip-toggle:focus-visible { outline: 2px solid rgb(234, 88, 12); outline-offset: 2px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
+      .chip:hover, .card-btn:hover, .modal-btn:hover { transform: none; }
+      .modal-content { transition: none; }
+    }
   </style>
 </head>
 <body>
@@ -631,7 +662,7 @@
       <h1>Recallis</h1>
       <p>Search FDA drug recalls and enforcement reports by drug, firm or classification — open data, keyless.</p>
       <div class="chip-group-label">💊 Popular drugs</div>
-      <div class="hero-chips">
+      <div class="hero-chips" id="drugChips">
         <button type="button" class="chip" data-action="prefill-check" data-arg="Aspirin">Aspirin</button>
         <button type="button" class="chip" data-action="prefill-check" data-arg="Ibuprofen">Ibuprofen</button>
         <button type="button" class="chip" data-action="prefill-check" data-arg="Acetaminophen">Acetaminophen</button>
@@ -653,8 +684,9 @@
         <button type="button" class="chip" data-action="prefill-check" data-arg="Warfarin">Warfarin</button>
         <button type="button" class="chip" data-action="prefill-check" data-arg="Naproxen">Naproxen</button>
       </div>
+      <button type="button" class="chip-toggle" data-action="toggle-chips" aria-expanded="false" aria-controls="drugChips">Show all</button>
       <div class="chip-group-label">🏭 Major manufacturers</div>
-      <div class="hero-chips firm-chip-row">
+      <div class="hero-chips firm-chip-row" id="firmChips">
         <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Pfizer">Pfizer</button>
         <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Teva">Teva</button>
         <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Sandoz">Sandoz</button>
@@ -676,6 +708,7 @@
         <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Merck">Merck</button>
         <button type="button" class="chip firm-chip" data-action="prefill-firm" data-arg="Johnson &amp; Johnson">Johnson & Johnson</button>
       </div>
+      <button type="button" class="chip-toggle" data-action="toggle-chips" aria-expanded="false" aria-controls="firmChips">Show all</button>
     </div>
     <div class="grid">
       <div class="card red-accent">
@@ -704,10 +737,10 @@
       </div>
     </div>
   </div>
-  <div class="modal" id="checkModal">
+  <div class="modal" id="checkModal" role="dialog" aria-modal="true" aria-labelledby="checkTitle">
     <div class="modal-content" id="checkContent">
-      <button class="modal-close" data-action="close-modal" data-modal="checkModal">×</button>
-      <h2>Check Drug</h2>
+      <button type="button" aria-label="Close" class="modal-close" data-action="close-modal" data-modal="checkModal">×</button>
+      <h2 id="checkTitle">Check Drug</h2>
       <div class="form-group">
         <label>Drug Name</label>
         <input type="text" id="checkDrug" placeholder="e.g., aspirin, ibuprofen" />
@@ -725,10 +758,10 @@
       <div id="checkResult"></div>
     </div>
   </div>
-  <div class="modal" id="firmModal">
+  <div class="modal" id="firmModal" role="dialog" aria-modal="true" aria-labelledby="firmTitle">
     <div class="modal-content" id="firmContent">
-      <button class="modal-close" data-action="close-modal" data-modal="firmModal">×</button>
-      <h2>Recalls by Firm</h2>
+      <button type="button" aria-label="Close" class="modal-close" data-action="close-modal" data-modal="firmModal">×</button>
+      <h2 id="firmTitle">Recalls by Firm</h2>
       <div class="form-group">
         <label>Manufacturer/Firm Name</label>
         <input type="text" id="firmName" placeholder="e.g., Pfizer, Johnson & Johnson" />
@@ -744,10 +777,10 @@
       <div id="firmResult"></div>
     </div>
   </div>
-  <div class="modal" id="recentModal">
+  <div class="modal" id="recentModal" role="dialog" aria-modal="true" aria-labelledby="recentTitle">
     <div class="modal-content" id="recentContent">
-      <button class="modal-close" data-action="close-modal" data-modal="recentModal">×</button>
-      <h2>Recent Recalls</h2>
+      <button type="button" aria-label="Close" class="modal-close" data-action="close-modal" data-modal="recentModal">×</button>
+      <h2 id="recentTitle">Recent Recalls</h2>
       <div class="form-group">
         <div class="slider-label">
           <label>Days Back</label>
@@ -766,10 +799,10 @@
       <div id="recentResult"></div>
     </div>
   </div>
-  <div class="modal" id="referenceModal">
+  <div class="modal" id="referenceModal" role="dialog" aria-modal="true" aria-labelledby="referenceTitle">
     <div class="modal-content" id="referenceContent">
-      <button class="modal-close" data-action="close-modal" data-modal="referenceModal">×</button>
-      <h2>By Recall Number</h2>
+      <button type="button" aria-label="Close" class="modal-close" data-action="close-modal" data-modal="referenceModal">×</button>
+      <h2 id="referenceTitle">By Recall Number</h2>
       <div class="form-group">
         <label>Recall Number (e.g., D-0617-2026)</label>
         <input type="text" id="recallNumber" placeholder="FDA recall number" class="recall-number-input" />
@@ -800,11 +833,52 @@
     function escAttr(str) {
       return esc(str).replace(/"/g, '&quot;');
     }
+    // The element that opened the current modal; every close path (Escape, the
+    // close button, the backdrop) hands focus back to it.
+    // A clicked Open button is not focused in every engine, so a capture-phase
+    // listener records it before onActionClick calls openModal().
+    let modalOpener = null;
+    let clickedOpener = null;
+    document.addEventListener('click', (e) => {
+      clickedOpener = (e.target && e.target.closest && e.target.closest('[data-action="open-modal"]')) || null;
+    }, true);
     function openModal(id) {
-      document.getElementById(id).classList.add('open');
+      const m = document.getElementById(id);
+      modalOpener = clickedOpener || document.activeElement;
+      clickedOpener = null;
+      m.classList.add('open');
+      const close = m.querySelector('.modal-close');
+      if (close) close.focus();
     }
     function closeModal(id) {
-      document.getElementById(id).classList.remove('open');
+      const m = document.getElementById(id);
+      const wasOpen = m.classList.contains('open');
+      m.classList.remove('open');
+      if (wasOpen && modalOpener && typeof modalOpener.focus === 'function') {
+        modalOpener.focus();
+        modalOpener = null;
+      }
+    }
+    // Tab and Shift+Tab wrap inside the open modal; hidden elements and
+    // tabindex="-1" are skipped. Escape stays with the listener below.
+    function trapModalTab(e) {
+      if (e.key !== 'Tab') return;
+      const m = document.querySelector('.modal.open');
+      if (!m) return;
+      const f = [...m.querySelectorAll('a[href], button, input, select, textarea, [tabindex]')]
+        .filter((el) => !el.disabled && el.getAttribute('tabindex') !== '-1' && !el.closest('[hidden]') && el.getClientRects().length > 0);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1], cur = document.activeElement;
+      if (!m.contains(cur)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (e.shiftKey && cur === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && cur === last) { e.preventDefault(); first.focus(); }
+    }
+    document.addEventListener('keydown', (e) => { trapModalTab(e); });
+    // Phone chip groups: "Show all" / "Show less" toggles .chips-open.
+    function toggleChips(btn) {
+      const open = document.getElementById(btn.getAttribute('aria-controls')).classList.toggle('chips-open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.textContent = open ? 'Show less' : 'Show all';
     }
     function widen(contentId) {
       document.getElementById(contentId).classList.add('wide');
@@ -1958,6 +2032,7 @@
       if (a === 'prefill-check') prefillCheck(el.dataset.arg);
       else if (a === 'prefill-firm') prefillFirm(el.dataset.arg);
       else if (a === 'open-modal') openModal(el.dataset.modal);
+      else if (a === 'toggle-chips') toggleChips(el);
       else if (a === 'close-modal') closeModal(el.dataset.modal);
       else if (a === 'submit-check') submitCheck();
       else if (a === 'submit-firm') submitFirm();
