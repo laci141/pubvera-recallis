@@ -312,7 +312,8 @@
     }
     .form-group select option { background: #1a1420; }
     .slider-label { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem; }
-    input[type="range"] { width: 100%; cursor: pointer; accent-color: #ea580c; }
+    input[type="range"] { width: 100%; height: 24px; cursor: pointer; accent-color: #ea580c; }
+    @media (pointer: coarse) { input[type="range"] { height: 44px; } }
     .modal-btn {
       width: 100%;
       padding: 12px;
@@ -742,11 +743,11 @@
       <button type="button" aria-label="Close" class="modal-close" data-action="close-modal" data-modal="checkModal">×</button>
       <h2 id="checkTitle">Check Drug</h2>
       <div class="form-group">
-        <label>Drug Name</label>
+        <label for="checkDrug">Drug Name</label>
         <input type="text" id="checkDrug" placeholder="e.g., aspirin, ibuprofen" />
       </div>
       <div class="form-group">
-        <label>Filter by Class (optional)</label>
+        <label for="checkClass">Filter by Class (optional)</label>
         <select id="checkClass">
           <option value="">Any class</option>
           <option value="I">Class I (most serious)</option>
@@ -763,12 +764,12 @@
       <button type="button" aria-label="Close" class="modal-close" data-action="close-modal" data-modal="firmModal">×</button>
       <h2 id="firmTitle">Recalls by Firm</h2>
       <div class="form-group">
-        <label>Manufacturer/Firm Name</label>
+        <label for="firmName">Manufacturer/Firm Name</label>
         <input type="text" id="firmName" placeholder="e.g., Pfizer, Johnson & Johnson" />
       </div>
       <div class="form-group">
         <div class="slider-label">
-          <label>Limit Results</label>
+          <label for="firmLimit">Limit Results</label>
           <span id="firmLimitVal">15</span>
         </div>
         <input type="range" id="firmLimit" min="1" max="200" value="15" data-mirror="firmLimitVal" />
@@ -783,14 +784,14 @@
       <h2 id="recentTitle">Recent Recalls</h2>
       <div class="form-group">
         <div class="slider-label">
-          <label>Days Back</label>
+          <label for="recentDays">Days Back</label>
           <span id="recentDaysVal">30</span>
         </div>
         <input type="range" id="recentDays" min="1" max="365" value="30" data-mirror="recentDaysVal" />
       </div>
       <div class="form-group">
         <div class="slider-label">
-          <label>Limit Results</label>
+          <label for="recentLimit">Limit Results</label>
           <span id="recentLimitVal">15</span>
         </div>
         <input type="range" id="recentLimit" min="1" max="200" value="15" data-mirror="recentLimitVal" />
@@ -804,7 +805,7 @@
       <button type="button" aria-label="Close" class="modal-close" data-action="close-modal" data-modal="referenceModal">×</button>
       <h2 id="referenceTitle">By Recall Number</h2>
       <div class="form-group">
-        <label>Recall Number (e.g., D-0617-2026)</label>
+        <label for="recallNumber">Recall Number (e.g., D-0617-2026)</label>
         <input type="text" id="recallNumber" placeholder="FDA recall number" class="recall-number-input" />
       </div>
       <button class="modal-btn" data-action="submit-reference">Lookup</button>
