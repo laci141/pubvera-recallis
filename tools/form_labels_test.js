@@ -31,9 +31,9 @@ check("no <label> without for= (found " + bad.length + ")", labels.length > 0 &&
 
 // Slider hit area.
 const range = /input.type="range". [{]([^}]*)[}]/.exec(flat);
-check("range rule has height: 24px", !!range && /(^|;)[ ]*height: 24px[ ]*(;|$)/.test(range[1]));
+check("range rule has min-height: 24px and no bare height: 24px", !!range && /(^|;)[ ]*min-height: 24px[ ]*(;|$)/.test(range[1]) && !/(^|[^-])height: 24px/.test(range[1]));
 const coarse = /@media [(]pointer: coarse[)] [{] input.type="range". [{]([^}]*)[}]/.exec(flat);
-check("pointer: coarse block has range height: 44px", !!coarse && /(^|;)[ ]*height: 44px[ ]*(;|$)/.test(coarse[1]));
+check("pointer: coarse block has range min-height: 44px and no bare height: 44px", !!coarse && /(^|;)[ ]*min-height: 44px[ ]*(;|$)/.test(coarse[1]) && !/(^|[^-])height: 44px/.test(coarse[1]));
 
 if (ran === 0) { console.error("FAIL: zero checks ran"); process.exit(1); }
 console.log((ran - failed) + "/" + ran + " passed, " + failed + " failed");
