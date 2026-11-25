@@ -50,7 +50,9 @@ WORKDIR /app
 # same as the other Pubvera apps. adduser -D also creates /home/app.
 # zlib is upgraded by name for CVE-2026-4738 (1.3.2-r1 -> 1.4-r0, Grype
 # --only-fixed); a bare apk upgrade would pull in every package.
-RUN apk add --no-cache ca-certificates wget && apk upgrade --no-cache zlib && adduser -D -u 10001 app
+# libcrypto3 and libssl3 are upgraded by name for the OpenSSL CVEs fixed in
+# 3.5.9-r1 (Grype --only-fixed, 2026-11-25), still never a bare apk upgrade.
+RUN apk add --no-cache ca-certificates wget && apk upgrade --no-cache zlib libcrypto3 libssl3 && adduser -D -u 10001 app
 
 COPY --from=web-builder /out/server ./server
 COPY --from=web-builder /out/index.html ./index.html
